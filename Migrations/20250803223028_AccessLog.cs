@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace leave_it_small.Migrations
+namespace smaller.Migrations
 {
     /// <inheritdoc />
     public partial class AccessLog : Migration

@@ -18,4 +18,4 @@ COPY --from=build /app .
 EXPOSE 5000
 ENV ASPNETCORE_URLS=http://+:5000
 
-ENTRYPOINT ["dotnet", "leave-it-small.dll"]
+ENTRYPOINT ["dotnet", "smaller.dll"]

@@ -1,4 +1,4 @@
-namespace leave_it_small.Models;
+namespace smaller.Models;
 
 public class AccessLog
 {

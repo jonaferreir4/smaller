@@ -1,8 +1,8 @@
-using leave_it_small.Http.Requests;
-using leave_it_small.Services;
+using smaller.Http.Requests;
+using smaller.Services;
 using Microsoft.AspNetCore.Mvc;
 
-namespace leave_it_small.Controllers;
+namespace smaller.Controllers;
 
 [ApiController]
 [Route("")]

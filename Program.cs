@@ -1,5 +1,5 @@
-using leave_it_small.Data;
-using leave_it_small.Services;
+using smaller.Data;
+using smaller.Services;
 using Microsoft.EntityFrameworkCore;
 using DotNetEnv;
 

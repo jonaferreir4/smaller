@@ -1,5 +1,5 @@
 
-namespace leave_it_small.utils;
+namespace smaller.utils;
 
 public static class ShortLinkSettings
 {

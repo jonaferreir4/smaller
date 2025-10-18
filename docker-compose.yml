@@ -42,7 +42,7 @@ services:
 
   frontend:
     build:
-      context: ../lim-front
+      context: ../smaller-front
       dockerfile: Dockerfile
     container_name: leaveit-frontend
     restart: always

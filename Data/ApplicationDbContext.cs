@@ -1,8 +1,8 @@
-using leave_it_small.Models;
-using leave_it_small.utils;
+using smaller.Models;
+using smaller.utils;
 using Microsoft.EntityFrameworkCore;
 
-namespace leave_it_small.Data;
+namespace smaller.Data;
 
 public class ApplicationDbContext(DbContextOptions options) : DbContext(options)
 {

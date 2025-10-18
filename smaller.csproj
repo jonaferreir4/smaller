@@ -4,7 +4,7 @@
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <RootNamespace>leave_it_small</RootNamespace>
+    <RootNamespace>smaller</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>

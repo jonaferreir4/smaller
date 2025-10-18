@@ -1,2 +1,2 @@
-namespace leave_it_small.Http.Requests;
+namespace smaller.Http.Requests;
     public record ShortenUrlRequest(string Url);

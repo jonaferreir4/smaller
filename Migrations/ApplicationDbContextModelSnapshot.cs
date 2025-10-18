@@ -4,11 +4,11 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
-using leave_it_small.Data;
+using smaller.Data;
 
 #nullable disable
 
-namespace leave_it_small.Migrations
+namespace smaller.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
     partial class ApplicationDbContextModelSnapshot : ModelSnapshot
@@ -22,7 +22,7 @@ namespace leave_it_small.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("leave_it_small.Models.AccessLog", b =>
+            modelBuilder.Entity("smaller.Models.AccessLog", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -51,7 +51,7 @@ namespace leave_it_small.Migrations
                     b.ToTable("AccessLogs");
                 });
 
-            modelBuilder.Entity("leave_it_small.Models.ShortenedUrl", b =>
+            modelBuilder.Entity("smaller.Models.ShortenedUrl", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -84,9 +84,9 @@ namespace leave_it_small.Migrations
                     b.ToTable("ShortenedUrls");
                 });
 
-            modelBuilder.Entity("leave_it_small.Models.AccessLog", b =>
+            modelBuilder.Entity("smaller.Models.AccessLog", b =>
                 {
-                    b.HasOne("leave_it_small.Models.ShortenedUrl", "shortenedUrl")
+                    b.HasOne("smaller.Models.ShortenedUrl", "shortenedUrl")
                         .WithMany("AccessLogs")
                         .HasForeignKey("ShortenedUrlId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -95,7 +95,7 @@ namespace leave_it_small.Migrations
                     b.Navigation("shortenedUrl");
                 });
 
-            modelBuilder.Entity("leave_it_small.Models.ShortenedUrl", b =>
+            modelBuilder.Entity("smaller.Models.ShortenedUrl", b =>
                 {
                     b.Navigation("AccessLogs");
                 });

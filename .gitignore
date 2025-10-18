@@ -13,3 +13,5 @@ appsettings.Development.json
 secrets.json
 
 **/docker-compose.override.yml
+
+.fake

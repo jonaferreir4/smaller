@@ -5,11 +5,11 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
-using leave_it_small.Data;
+using smaller.Data;
 
 #nullable disable
 
-namespace leave_it_small.Migrations
+namespace smaller.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
     [Migration("20250801014333_InitialCreate")]
@@ -25,7 +25,7 @@ namespace leave_it_small.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("leave_it_small.Models.ShortenedUrl", b =>
+            modelBuilder.Entity("smaller.Models.ShortenedUrl", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()

@@ -1,9 +1,9 @@
-using leave_it_small.Data;
-using leave_it_small.Http.Responses;
-using leave_it_small.Models;
-using leave_it_small.utils;
+using smaller.Data;
+using smaller.Http.Responses;
+using smaller.Models;
+using smaller.utils;
 using Microsoft.EntityFrameworkCore;
-namespace leave_it_small.Services;
+namespace smaller.Services;
 
 public class UrlShorteningService(ApplicationDbContext _context)
 {
