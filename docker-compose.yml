@@ -11,6 +11,11 @@ services:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 3s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7-alpine
@@ -25,9 +30,15 @@ services:
     build: .
     container_name: smaller-app
     restart: always
+    # Porta exposta apenas para acesso direto durante desenvolvimento
+    # Em produção, o Traefik roteia internamente para a porta 5000
+    # ports:
+    #   - "5000:5000"
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
     environment:
       DB_HOST: db
       DB_PORT: ${DB_PORT}
@@ -40,16 +51,17 @@ services:
       DOMAIN_NAME: ${DOMAIN_NAME}
 
     labels:
-      - "traefik.enable=true" 
+      - 'traefik.enable=true'
       # Roteamento para a API (ex: /api/shorten, /api/links)
-      - "traefik.http.routers.smaller-api.rule=Host(`${DOMAIN_NAME}`) && PathPrefix(`/api`)"
-      - "traefik.http.routers.smaller-api.entrypoints=web"
-      - "traefik.http.routers.smaller-api.priority=30"
-
-      - "traefik.http.routers.smaller-redirect.rule=Host(`${DOMAIN_NAME}`) && PathPrefix(`/`)"
-      - "traefik.http.routers.smaller-redirect.entrypoints=web"
-      - "traefik.http.routers.smaller-redirect.priority=20" # Prioridade para evitar conflitos com a rota da API
-      - "traefik.http.services.smaller-service.loadbalancer.server.port=5000" 
+      - 'traefik.http.routers.smaller-api.rule=Host(`${DOMAIN_NAME}`) && PathPrefix(`/api`)'
+      - 'traefik.http.routers.smaller-api.entrypoints=web'
+      - 'traefik.http.routers.smaller-api.priority=30'
+      # Roteamento para redirecionamento de short codes (ex: /AbCdEfG)
+      # PathRegexp v3: captura apenas paths com exatamente 7 caracteres alfanuméricos
+      - 'traefik.http.routers.smaller-redirect.rule=Host(`${DOMAIN_NAME}`) && PathRegexp(`^/[A-Za-z0-9]{7}$$`)'
+      - 'traefik.http.routers.smaller-redirect.entrypoints=web'
+      - 'traefik.http.routers.smaller-redirect.priority=20'
+      - 'traefik.http.services.smaller-service.loadbalancer.server.port=5000'
 
   frontend:
     build:
@@ -57,21 +69,24 @@ services:
       dockerfile: Dockerfile
     container_name: smaller-frontend
     restart: always
+    # Sem porta exposta: o Traefik roteia para este container internamente
+    # ports:
+    #   - "80:80"
     depends_on:
       - app
     labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.smaller-frontend.rule=Host(`${DOMAIN_NAME_FRONT}`)"
-      - "traefik.http.routers.smaller-frontend.entrypoints=web"
-      - "traefik.http.routers.smaller-frontend.priority=10" 
-      - "traefik.http.services.smaller-frontend.loadbalancer.server.port=80"
+      - 'traefik.enable=true'
+      # Catch-all: tudo que não é /api nem short code vai para o frontend SPA
+      - 'traefik.http.routers.smaller-frontend.rule=Host(`${DOMAIN_NAME}`)'
+      - 'traefik.http.routers.smaller-frontend.entrypoints=web'
+      - 'traefik.http.routers.smaller-frontend.priority=10'
+      - 'traefik.http.services.smaller-frontend.loadbalancer.server.port=80'
 
   traefik: 
-    image: traefik:v3.5
-    environment:
-      - DOCKER_API_VERSION=1.40
+    image: traefik:v3.6
     command: 
       - "--api.dashboard=true"
+      - "--api.insecure=true"
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
 
@@ -86,8 +101,8 @@ services:
       # - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
     ports:
       - "80:80"
-      # - "443:443"
-      # - "8080:8080" # Porta para o dashboard da API
+      # - "443:443"  # Descomentar quando habilitar HTTPS
+      # - "8080:8080" # Dashboard do Traefik (habilitar se necessário)
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - traefik-certs:/letsencrypt
@@ -104,4 +119,5 @@ services:
 
 volumes:
   postgres_data:
+  redis_data:
   traefik-certs:
