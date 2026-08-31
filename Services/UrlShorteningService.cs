@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using smaller.Data;
+using smaller.Http.Requests;
 using smaller.Http.Responses;
 using smaller.Models;
 using smaller.utils;
@@ -36,26 +37,46 @@ public class UrlShorteningService(
         }
     }
 
-    public async Task<ShortenedUrlResponse> CreateShortenedUrlAsync(string originalUrl, string baseUrl)
+    public async Task<ShortenedUrlResponse> CreateShortenedUrlAsync(ShortenUrlRequest request, string baseUrl)
     {
         var domainName = Environment.GetEnvironmentVariable("DOMAIN_NAME");
         if (!string.IsNullOrEmpty(domainName))
         {
-            var originalUri = new Uri(originalUrl);
+            var originalUri = new Uri(request.Url);
             if (originalUri.Host.Equals(domainName, StringComparison.OrdinalIgnoreCase))
             {
                 throw new InvalidOperationException("This URL is already shortened.");
             }
         }
 
-        var code = await GenerateUniqueCode();
+        string code;
+        bool isCustom = false;
+
+        if (!string.IsNullOrWhiteSpace(request.CustomCode))
+        {
+            var custom = request.CustomCode.Trim();
+            if (await context.ShortenedUrls.AsNoTracking().AnyAsync(s => s.Code == custom))
+            {
+                throw new InvalidOperationException($"The code '{custom}' is already in use.");
+            }
+            code = custom;
+            isCustom = true;
+        }
+        else
+        {
+            code = await GenerateUniqueCode();
+        }
 
         var shortenedUrl = new ShortenedUrl
         {
             Id = Guid.NewGuid(),
-            LongUrl = originalUrl,
+            LongUrl = request.Url,
             Code = code,
             ShortUrl = $"{baseUrl}/{code}",
+            IsActive = true,
+            ExpiresAtUtc = request.ExpiresAtUtc?.ToUniversalTime(),
+            MaxClicks = request.MaxClicks,
+            IsCustom = isCustom,
             CreatedOnUtc = DateTime.UtcNow
         };
 
@@ -63,46 +84,35 @@ public class UrlShorteningService(
         await context.SaveChangesAsync();
 
         // Warm up cache
-        await cacheService.SetLongUrlAsync(code, shortenedUrl.LongUrl);
+        if (shortenedUrl.IsActive && (!shortenedUrl.ExpiresAtUtc.HasValue || shortenedUrl.ExpiresAtUtc > DateTime.UtcNow))
+        {
+            await cacheService.SetLongUrlAsync(code, shortenedUrl.LongUrl);
+        }
 
-        DateOnly date = DateOnly.FromDateTime(shortenedUrl.CreatedOnUtc);
-        return new ShortenedUrlResponse(
-            shortenedUrl.ShortUrl,
-            shortenedUrl.LongUrl,
-            shortenedUrl.Click,
-            date
-        );
+        return ToResponse(shortenedUrl, baseUrl);
     }
 
     public async Task<string?> GetLongUrlAsync(string code, string? ipAddress, string? userAgent)
     {
-        // 1. Try reading from Redis Cache first
-        var cachedLongUrl = await cacheService.GetLongUrlAsync(code);
-        ShortenedUrl? entity = null;
+        var entity = await context.ShortenedUrls
+            .AsNoTracking()
+            .FirstOrDefaultAsync(s => s.Code == code);
 
-        if (!string.IsNullOrEmpty(cachedLongUrl))
+        if (entity == null || !entity.IsActive) return null;
+
+        // Expiration Check
+        if (entity.ExpiresAtUtc.HasValue && entity.ExpiresAtUtc.Value <= DateTime.UtcNow)
         {
-            // Fetch entity for logging
-            entity = await context.ShortenedUrls
-                .AsNoTracking()
-                .FirstOrDefaultAsync(s => s.Code == code);
-        }
-        else
-        {
-            // Fallback to database
-            entity = await context.ShortenedUrls
-                .AsNoTracking()
-                .FirstOrDefaultAsync(s => s.Code == code);
-
-            if (entity == null) return null;
-
-            cachedLongUrl = entity.LongUrl;
-            await cacheService.SetLongUrlAsync(code, cachedLongUrl);
+            return null;
         }
 
-        if (entity == null) return null;
+        // Max Clicks Check
+        if (entity.MaxClicks.HasValue && entity.Click >= entity.MaxClicks.Value)
+        {
+            return null;
+        }
 
-        // 2. Queue access log asynchronously for batch persistence
+        // Queue access log asynchronously for batch persistence
         var accessLog = new AccessLog
         {
             Id = Guid.NewGuid(),
@@ -114,10 +124,10 @@ public class UrlShorteningService(
 
         await accessLogQueue.QueueAccessLogAsync(accessLog);
 
-        return cachedLongUrl;
+        return entity.LongUrl;
     }
 
-    public async Task<ShortenedUrlResponse?> DeleteShortUrlAsync(string code)
+    public async Task<ShortenedUrlResponse?> DeleteShortUrlAsync(string code, string baseUrl)
     {
         var entity = await context.ShortenedUrls.FirstOrDefaultAsync(s => s.Code == code);
 
@@ -129,43 +139,85 @@ public class UrlShorteningService(
         // Invalidate cache
         await cacheService.RemoveAsync(code);
 
-        DateOnly date = DateOnly.FromDateTime(entity.CreatedOnUtc);
-        return new ShortenedUrlResponse(
-            entity.ShortUrl,
-            entity.LongUrl,
-            entity.Click,
-            date
-        );
+        return ToResponse(entity, baseUrl);
     }
 
-    public async Task<ShortenedUrlResponse?> GetShortUrlAsync(string code)
+    public async Task<ShortenedUrlResponse?> GetShortUrlAsync(string code, string baseUrl)
     {
         var entity = await context.ShortenedUrls.AsNoTracking().FirstOrDefaultAsync(s => s.Code == code);
 
         if (entity == null) return null;
-        DateOnly date = DateOnly.FromDateTime(entity.CreatedOnUtc);
-        return new ShortenedUrlResponse(
-            entity.ShortUrl,
-            entity.LongUrl,
-            entity.Click,
-            date
-        );
+        return ToResponse(entity, baseUrl);
     }
 
-    public async Task<List<ShortenedUrlResponse>> GetAllUrlsAsync()
+    public async Task<List<ShortenedUrlResponse>> GetAllUrlsAsync(string baseUrl)
     {
         var listResponse = await context.ShortenedUrls.AsNoTracking().ToListAsync();
 
-        return listResponse.Select(s =>
-        {
-            DateOnly date = DateOnly.FromDateTime(s.CreatedOnUtc);
-            return new ShortenedUrlResponse(s.ShortUrl, s.LongUrl, s.Click, date);
-        }).ToList();
+        return listResponse.Select(s => ToResponse(s, baseUrl)).ToList();
+    }
+
+    public async Task<UrlAnalyticsResponse?> GetAnalyticsAsync(string code, string baseUrl)
+    {
+        var entity = await context.ShortenedUrls
+            .AsNoTracking()
+            .Include(s => s.AccessLogs)
+            .FirstOrDefaultAsync(s => s.Code == code);
+
+        if (entity == null) return null;
+
+        var logs = entity.AccessLogs;
+
+        var clicksByDate = logs
+            .GroupBy(l => l.AccessDate.ToString("yyyy-MM-dd"))
+            .ToDictionary(g => g.Key, g => g.Count());
+
+        var topBrowsers = logs
+            .GroupBy(l => string.IsNullOrEmpty(l.Browser) ? "Unknown" : l.Browser)
+            .ToDictionary(g => g.Key, g => g.Count());
+
+        var topOS = logs
+            .GroupBy(l => string.IsNullOrEmpty(l.OperatingSystem) ? "Unknown" : l.OperatingSystem)
+            .ToDictionary(g => g.Key, g => g.Count());
+
+        var topDevices = logs
+            .GroupBy(l => string.IsNullOrEmpty(l.DeviceType) ? "Desktop" : l.DeviceType)
+            .ToDictionary(g => g.Key, g => g.Count());
+
+        return new UrlAnalyticsResponse(
+            entity.Code,
+            $"{baseUrl}/{entity.Code}",
+            entity.LongUrl,
+            entity.Click,
+            clicksByDate,
+            topBrowsers,
+            topOS,
+            topDevices
+        );
     }
 
     public async Task<int?> GetClickCouter(string code)
     {
         var entity = await context.ShortenedUrls.AsNoTracking().FirstOrDefaultAsync(s => s.Code == code);
         return entity?.Click;
+    }
+
+    private static ShortenedUrlResponse ToResponse(ShortenedUrl entity, string baseUrl)
+    {
+        DateOnly date = DateOnly.FromDateTime(entity.CreatedOnUtc);
+        var qrCodeUrl = $"{baseUrl}/api/links/{entity.Code}/qrcode";
+
+        return new ShortenedUrlResponse(
+            entity.ShortUrl,
+            entity.LongUrl,
+            entity.Code,
+            entity.Click,
+            entity.IsActive,
+            entity.ExpiresAtUtc,
+            entity.MaxClicks,
+            entity.IsCustom,
+            qrCodeUrl,
+            date
+        );
     }
 }

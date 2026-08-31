@@ -58,6 +58,14 @@ public class AccessLogProcessor(
             using var scope = scopeFactory.CreateScope();
             var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
+            foreach (var log in logs)
+            {
+                var uaInfo = UserAgentParser.Parse(log.UserAgent);
+                log.Browser = uaInfo.Browser;
+                log.OperatingSystem = uaInfo.OperatingSystem;
+                log.DeviceType = uaInfo.DeviceType;
+            }
+
             dbContext.AccessLogs.AddRange(logs);
 
             var counts = logs.GroupBy(l => l.ShortenedUrlId).ToDictionary(g => g.Key, g => g.Count());
