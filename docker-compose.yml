@@ -46,9 +46,11 @@ services:
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
       REDIS_HOST: redis
-      REDIS_PORT: 6379
-      
       DOMAIN_NAME: ${DOMAIN_NAME}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ISSUER: ${JWT_ISSUER}
+      JWT_AUDIENCE: ${JWT_AUDIENCE}
+      FREE_PLAN_LINK_LIMIT: ${FREE_PLAN_LINK_LIMIT}
 
     labels:
       - 'traefik.enable=true'

@@ -50,10 +50,13 @@ public class UrlShorteningService(
             var user = await context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userId.Value);
             if (user != null && user.Plan.Equals("Free", StringComparison.OrdinalIgnoreCase))
             {
+                var freeLimitStr = Environment.GetEnvironmentVariable("FREE_PLAN_LINK_LIMIT");
+                var freeLimit = int.TryParse(freeLimitStr, out var parsedLimit) ? parsedLimit : 100;
+
                 var count = await context.ShortenedUrls.AsNoTracking().CountAsync(s => s.UserId == userId.Value);
-                if (count >= 100)
+                if (count >= freeLimit)
                 {
-                    throw new InvalidOperationException("Free plan limit reached (100 links). Upgrade to Pro for unlimited links.");
+                    throw new InvalidOperationException($"Free plan limit reached ({freeLimit} links). Upgrade to Pro for unlimited links.");
                 }
             }
         }
