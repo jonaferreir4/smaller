@@ -1,6 +1,6 @@
-# CLAUDE.md — Guia Rápido do Desenvolvedor & IA (Leave It Small)
+# CLAUDE.md — Guia Rápido do Desenvolvedor & IA (Smaller)
 
-> Guia rápido com comandos essenciais, visão geral da arquitetura e diretrizes para desenvolvimento na API **Leave It Small (`smaller`)**.
+> Guia rápido com comandos essenciais, visão geral da arquitetura e diretrizes para desenvolvimento na API **Smaller (`smaller`)**.
 
 ---
 

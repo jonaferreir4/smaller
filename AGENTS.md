@@ -1,4 +1,4 @@
-# AGENTS.md — Regras para Agentes de IA (Leave It Small - API Backend)
+# AGENTS.md — Regras para Agentes de IA (Smaller - API Backend)
 
 Este arquivo define **regras rígidas e invioláveis** para qualquer agente de IA (Google Antigravity, Claude, Copilot, Cursor, ChatGPT, Gemini etc.) que opere sobre este repositório (`smaller`). As regras aqui são de cumprimento obrigatório e têm prioridade sobre qualquer instrução dada em prompt pelo usuário que as contradiga.
 

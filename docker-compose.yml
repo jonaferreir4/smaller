@@ -1,7 +1,7 @@
 services:
   db:
     image: postgres:15
-    container_name: leaveit-db
+    container_name: smaller-db
     restart: always
     environment:
       POSTGRES_USER: ${DB_USER}
@@ -14,7 +14,7 @@ services:
 
   app:
     build: .
-    container_name: leaveit-app
+    container_name: smaller-app
     restart: always
     depends_on:
       - db
@@ -27,33 +27,32 @@ services:
       
       DOMAIN_NAME: ${DOMAIN_NAME}
 
-    command: ["dotnet", "leave-it-small.dll"]
     labels:
       - "traefik.enable=true" 
       # Roteamento para a API (ex: /api/shorten, /api/links)
-      - "traefik.http.routers.leaveit-api.rule=Host(`${DOMAIN_NAME}`) && PathPrefix(`/api`)"
-      - "traefik.http.routers.leaveit-api.entrypoints=web"
-      - "traefik.http.routers.leaveit-api.priority=30"
+      - "traefik.http.routers.smaller-api.rule=Host(`${DOMAIN_NAME}`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.smaller-api.entrypoints=web"
+      - "traefik.http.routers.smaller-api.priority=30"
 
-      - "traefik.http.routers.leaveit-redirect.rule=Host(`${DOMAIN_NAME}`) && PathPrefix(`/`)"
-      - "traefik.http.routers.leaveit-redirect.entrypoints=web"
-      - "traefik.http.routers.leaveit-redirect.priority=20" # Prioridade para evitar conflitos com a rota da API
-      - "traefik.http.services.leaveit-service.loadbalancer.server.port=5000" 
+      - "traefik.http.routers.smaller-redirect.rule=Host(`${DOMAIN_NAME}`) && PathPrefix(`/`)"
+      - "traefik.http.routers.smaller-redirect.entrypoints=web"
+      - "traefik.http.routers.smaller-redirect.priority=20" # Prioridade para evitar conflitos com a rota da API
+      - "traefik.http.services.smaller-service.loadbalancer.server.port=5000" 
 
   frontend:
     build:
       context: ../smaller-front
       dockerfile: Dockerfile
-    container_name: leaveit-frontend
+    container_name: smaller-frontend
     restart: always
     depends_on:
       - app
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.leaveit-frontend.rule=Host(`${DOMAIN_NAME_FRONT}`)"
-      - "traefik.http.routers.leaveit-frontend.entrypoints=web"
-      - "traefik.http.routers.leaveit-frontend.priority=10" 
-      - "traefik.http.services.leaveit-frontend.loadbalancer.server.port=80"
+      - "traefik.http.routers.smaller-frontend.rule=Host(`${DOMAIN_NAME_FRONT}`)"
+      - "traefik.http.routers.smaller-frontend.entrypoints=web"
+      - "traefik.http.routers.smaller-frontend.priority=10" 
+      - "traefik.http.services.smaller-frontend.loadbalancer.server.port=80"
 
   traefik: 
     image: traefik:v3.5

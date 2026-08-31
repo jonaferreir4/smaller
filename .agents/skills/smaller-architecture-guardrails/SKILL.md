@@ -1,6 +1,6 @@
 ---
 name: smaller-architecture-guardrails
-description: Proteção arquitetural e validação das regras de negócio centrais do encurtador de URLs Leave It Small (algoritmo Base62, limites de código, prevenção de loops e rastreamento de acessos).
+description: Proteção arquitetural e validação das regras de negócio centrais do encurtador de URLs Smaller (algoritmo Base62, limites de código, prevenção de loops e rastreamento de acessos).
 ---
 
 # Guardrails Arquiteturais do `smaller`

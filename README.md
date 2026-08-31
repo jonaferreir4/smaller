@@ -1,6 +1,6 @@
-# Leave It Small - API Backend
+# Smaller - API Backend
 
-Este repositório contém a implementação do backend do sistema **Leave It Small**, uma API RESTful de alta performance projetada para o encurtamento de URLs, redirecionamento dinâmico e rastreamento analítico de acessos.
+Este repositório contém a implementação do backend do sistema **Smaller**, uma API RESTful de alta performance projetada para o encurtamento de URLs, redirecionamento dinâmico e rastreamento analítico de acessos.
 
 A aplicação foi desenvolvida utilizando a plataforma **.NET 8 (ASP.NET Core)**, com persistência relacional em **PostgreSQL** por meio do **Entity Framework Core**, e arquitetura de infraestrutura containerizada com **Docker Compose** e proxy reverso **Traefik v3.5**.
 
@@ -131,7 +131,7 @@ O sistema utiliza um arquivo `.env` localizado na raiz do projeto para definir a
 | :--- | :--- | :--- |
 | `DB_HOST` | Endereço do servidor do banco de dados PostgreSQL | `db` (em container) / `localhost` |
 | `DB_PORT` | Porta de conexão do banco de dados | `5432` |
-| `DB_NAME` | Nome do banco de dados relacional | `leaveitdb` |
+| `DB_NAME` | Nome do banco de dados relacional | `smallerdb` |
 | `DB_USER` | Usuário do banco de dados | `postgres` |
 | `DB_PASSWORD` | Senha do usuário do banco de dados | `12345` |
 | `DOMAIN_NAME` | FQDN configurado para a API e links encurtados | `short.local` |
@@ -182,8 +182,8 @@ A infraestrutura orquestrada via Docker Compose levanta o banco de dados Postgre
    ```
 
 3. O Traefik gerenciará as requisições na porta 80 e encaminhará o tráfego com base nos rótulos (`labels`) definidos:
-   *   Rotas que iniciam com `/api` ou redirecionamentos de rota raiz serão direcionados ao container `leaveit-app`.
-   *   Tráfego destinado ao domínio frontend será encaminhado ao container `leaveit-frontend`.
+   *   Rotas que iniciam com `/api` ou redirecionamentos de rota raiz serão direcionados ao container `smaller-app`.
+   *   Tráfego destinado ao domínio frontend será encaminhado ao container `smaller-frontend`.
 
 ---
 
