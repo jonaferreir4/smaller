@@ -7,9 +7,12 @@ namespace smaller.Controllers;
 
 [ApiController]
 [Route("")]
-public class ShortenedUrlController(UrlShorteningService urlShorteningService) : Controller
+public class ShortenedUrlController(
+    UrlShorteningService urlShorteningService,
+    QrCodeService qrCodeService) : Controller
 {
     private readonly UrlShorteningService _urlShorteningService = urlShorteningService;
+    private readonly QrCodeService _qrCodeService = qrCodeService;
 
     [HttpGet("api")]
     public IActionResult ApiRoot()
@@ -20,22 +23,45 @@ public class ShortenedUrlController(UrlShorteningService urlShorteningService) :
     [HttpGet("api/links")]
     public async Task<IActionResult> GetAllShortenedUrls()
     {
-        var result = await _urlShorteningService.GetAllUrlsAsync();
+        var baseUrl = GetBaseUrl();
+        var result = await _urlShorteningService.GetAllUrlsAsync(baseUrl);
         return Ok(result);
     }
 
     [HttpGet("api/links/{code}")]
     public async Task<IActionResult> GetShortenedUrl(string code)
     {
-        var result = await _urlShorteningService.GetShortUrlAsync(code);
+        var baseUrl = GetBaseUrl();
+        var result = await _urlShorteningService.GetShortUrlAsync(code, baseUrl);
         if (result == null) return NotFound();
         return Ok(result);
+    }
+
+    [HttpGet("api/links/{code}/analytics")]
+    public async Task<IActionResult> GetUrlAnalytics(string code)
+    {
+        var baseUrl = GetBaseUrl();
+        var result = await _urlShorteningService.GetAnalyticsAsync(code, baseUrl);
+        if (result == null) return NotFound();
+        return Ok(result);
+    }
+
+    [HttpGet("api/links/{code}/qrcode")]
+    public async Task<IActionResult> GetQrCode(string code)
+    {
+        var baseUrl = GetBaseUrl();
+        var result = await _urlShorteningService.GetShortUrlAsync(code, baseUrl);
+        if (result == null) return NotFound();
+
+        var pngBytes = _qrCodeService.GenerateQrCodePng(result.ShortUrl);
+        return File(pngBytes, "image/png", $"qrcode-{code}.png");
     }
 
     [HttpDelete("api/links/{code}")]
     public async Task<IActionResult> DeleteShortenedUrl(string code)
     {
-        var result = await _urlShorteningService.DeleteShortUrlAsync(code);
+        var baseUrl = GetBaseUrl();
+        var result = await _urlShorteningService.DeleteShortUrlAsync(code, baseUrl);
         if (result == null) return NotFound();
         return Ok(result);
     }
@@ -51,9 +77,8 @@ public class ShortenedUrlController(UrlShorteningService urlShorteningService) :
 
         try
         {
-            var domain = Environment.GetEnvironmentVariable("DOMAIN_NAME") ?? Request.Host.Value;
-            var baseUrl = $"{Request.Scheme}://{domain}";
-            var result = await _urlShorteningService.CreateShortenedUrlAsync(request.Url, baseUrl);
+            var baseUrl = GetBaseUrl();
+            var result = await _urlShorteningService.CreateShortenedUrlAsync(request, baseUrl);
             return Ok(result);
         }
         catch (InvalidOperationException ex)
@@ -72,10 +97,13 @@ public class ShortenedUrlController(UrlShorteningService urlShorteningService) :
         if (longUrl == null)
         {
             return NotFound();
-
         }
         return Redirect(longUrl);
     }
 
-
+    private string GetBaseUrl()
+    {
+        var domain = Environment.GetEnvironmentVariable("DOMAIN_NAME") ?? Request.Host.Value;
+        return $"{Request.Scheme}://{domain}";
+    }
 }
