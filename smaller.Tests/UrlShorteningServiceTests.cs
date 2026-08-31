@@ -4,6 +4,7 @@ using smaller.Models;
 using smaller.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
@@ -25,10 +26,12 @@ public class UrlShorteningServiceTests
 
         _dbContext = new ApplicationDbContext(options);
 
-        var mockCache = new Mock<IDistributedCache>();
+        var mockDistributedCache = new Mock<IDistributedCache>();
+        var memoryCacheOptions = new MemoryCacheOptions();
+        var memoryCache = new MemoryCache(memoryCacheOptions);
         var mockCacheLogger = new Mock<ILogger<RedisCacheService>>();
-        _redisCacheService = new RedisCacheService(mockCache.Object, mockCacheLogger.Object);
 
+        _redisCacheService = new RedisCacheService(mockDistributedCache.Object, memoryCache, mockCacheLogger.Object);
         _accessLogQueue = new AccessLogQueue();
         _service = new UrlShorteningService(_dbContext, _redisCacheService, _accessLogQueue);
     }
@@ -65,6 +68,34 @@ public class UrlShorteningServiceTests
         Assert.NotNull(result);
         Assert.Equal("my-alias", result.Code);
         Assert.True(result.IsCustom);
+    }
+
+    [Fact]
+    public async Task CreateShortenedUrlAsync_WithPrivateIpUrl_ShouldThrowException_SSRFGuard()
+    {
+        // Arrange
+        var request = new ShortenUrlRequest("http://127.0.0.1/admin");
+        var baseUrl = "http://short.local";
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _service.CreateShortenedUrlAsync(request, baseUrl));
+
+        Assert.Contains("SSRF Protection", ex.Message);
+    }
+
+    [Fact]
+    public async Task CreateShortenedUrlAsync_WithInvalidCustomCode_ShouldThrowException()
+    {
+        // Arrange
+        var request = new ShortenUrlRequest("https://example.com", CustomCode: "invalid code!");
+        var baseUrl = "http://short.local";
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _service.CreateShortenedUrlAsync(request, baseUrl));
+
+        Assert.Contains("Custom code must be 3-30 characters", ex.Message);
     }
 
     [Fact]

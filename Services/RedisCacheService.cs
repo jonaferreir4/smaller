@@ -1,52 +1,86 @@
 using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace smaller.Services;
 
-public class RedisCacheService(IDistributedCache cache, ILogger<RedisCacheService> logger)
+public class RedisCacheService(
+    IDistributedCache distributedCache,
+    IMemoryCache memoryCache,
+    ILogger<RedisCacheService> logger)
 {
-    private static readonly DistributedCacheEntryOptions CacheOptions = new()
+    private static readonly DistributedCacheEntryOptions DistributedOptions = new()
     {
         AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24),
         SlidingExpiration = TimeSpan.FromHours(2)
     };
 
+    private static readonly MemoryCacheEntryOptions MemoryOptions = new()
+    {
+        AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(30)
+    };
+
     public async Task<string?> GetLongUrlAsync(string code, CancellationToken cancellationToken = default)
     {
+        var cacheKey = GetCacheKey(code);
+
+        // L1 Cache: In-Memory (Ultra Fast, sub-millisecond)
+        if (memoryCache.TryGetValue<string>(cacheKey, out var memoryUrl) && !string.IsNullOrEmpty(memoryUrl))
+        {
+            return memoryUrl;
+        }
+
+        // L2 Cache: Distributed Redis
         try
         {
-            var cacheKey = GetCacheKey(code);
-            return await cache.GetStringAsync(cacheKey, cancellationToken);
+            var redisUrl = await distributedCache.GetStringAsync(cacheKey, cancellationToken);
+            if (!string.IsNullOrEmpty(redisUrl))
+            {
+                // Populate L1 cache for subsequent requests
+                memoryCache.Set(cacheKey, redisUrl, MemoryOptions);
+                return redisUrl;
+            }
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error fetching cached URL for code {Code}", code);
-            return null;
+            logger.LogError(ex, "Error fetching cached URL from Redis for code {Code}", code);
         }
+
+        return null;
     }
 
     public async Task SetLongUrlAsync(string code, string longUrl, CancellationToken cancellationToken = default)
     {
+        var cacheKey = GetCacheKey(code);
+
+        // Set L1 Cache
+        memoryCache.Set(cacheKey, longUrl, MemoryOptions);
+
+        // Set L2 Cache
         try
         {
-            var cacheKey = GetCacheKey(code);
-            await cache.SetStringAsync(cacheKey, longUrl, CacheOptions, cancellationToken);
+            await distributedCache.SetStringAsync(cacheKey, longUrl, DistributedOptions, cancellationToken);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error setting cache for code {Code}", code);
+            logger.LogError(ex, "Error setting Redis cache for code {Code}", code);
         }
     }
 
     public async Task RemoveAsync(string code, CancellationToken cancellationToken = default)
     {
+        var cacheKey = GetCacheKey(code);
+
+        // Remove from L1
+        memoryCache.Remove(cacheKey);
+
+        // Remove from L2
         try
         {
-            var cacheKey = GetCacheKey(code);
-            await cache.RemoveAsync(cacheKey, cancellationToken);
+            await distributedCache.RemoveAsync(cacheKey, cancellationToken);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error removing cache for code {Code}", code);
+            logger.LogError(ex, "Error removing Redis cache for code {Code}", code);
         }
     }
 

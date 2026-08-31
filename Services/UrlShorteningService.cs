@@ -37,12 +37,30 @@ public class UrlShorteningService(
         }
     }
 
-    public async Task<ShortenedUrlResponse> CreateShortenedUrlAsync(ShortenUrlRequest request, string baseUrl)
+    public async Task<ShortenedUrlResponse> CreateShortenedUrlAsync(ShortenUrlRequest request, string baseUrl, Guid? userId = null)
     {
-        var domainName = Environment.GetEnvironmentVariable("DOMAIN_NAME");
-        if (!string.IsNullOrEmpty(domainName))
+        if (!SecurityValidator.IsValidUrl(request.Url, out var urlError))
         {
-            var originalUri = new Uri(request.Url);
+            throw new InvalidOperationException(urlError);
+        }
+
+        // Plan Quota Check
+        if (userId.HasValue)
+        {
+            var user = await context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userId.Value);
+            if (user != null && user.Plan.Equals("Free", StringComparison.OrdinalIgnoreCase))
+            {
+                var count = await context.ShortenedUrls.AsNoTracking().CountAsync(s => s.UserId == userId.Value);
+                if (count >= 100)
+                {
+                    throw new InvalidOperationException("Free plan limit reached (100 links). Upgrade to Pro for unlimited links.");
+                }
+            }
+        }
+
+        var domainName = Environment.GetEnvironmentVariable("DOMAIN_NAME");
+        if (!string.IsNullOrEmpty(domainName) && Uri.TryCreate(request.Url, UriKind.Absolute, out var originalUri))
+        {
             if (originalUri.Host.Equals(domainName, StringComparison.OrdinalIgnoreCase))
             {
                 throw new InvalidOperationException("This URL is already shortened.");
@@ -55,6 +73,12 @@ public class UrlShorteningService(
         if (!string.IsNullOrWhiteSpace(request.CustomCode))
         {
             var custom = request.CustomCode.Trim();
+
+            if (!SecurityValidator.IsValidCustomCode(custom, out var customCodeError))
+            {
+                throw new InvalidOperationException(customCodeError);
+            }
+
             if (await context.ShortenedUrls.AsNoTracking().AnyAsync(s => s.Code == custom))
             {
                 throw new InvalidOperationException($"The code '{custom}' is already in use.");
@@ -70,6 +94,7 @@ public class UrlShorteningService(
         var shortenedUrl = new ShortenedUrl
         {
             Id = Guid.NewGuid(),
+            UserId = userId,
             LongUrl = request.Url,
             Code = code,
             ShortUrl = $"{baseUrl}/{code}",
