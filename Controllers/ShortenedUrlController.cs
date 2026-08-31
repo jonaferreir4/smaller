@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using smaller.Http.Requests;
 using smaller.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -78,7 +79,10 @@ public class ShortenedUrlController(
         try
         {
             var baseUrl = GetBaseUrl();
-            var result = await _urlShorteningService.CreateShortenedUrlAsync(request, baseUrl);
+            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            Guid? userId = Guid.TryParse(userIdClaim, out var parsedId) ? parsedId : null;
+
+            var result = await _urlShorteningService.CreateShortenedUrlAsync(request, baseUrl, userId);
             return Ok(result);
         }
         catch (InvalidOperationException ex)

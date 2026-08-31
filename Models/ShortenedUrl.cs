@@ -13,5 +13,8 @@ public class ShortenedUrl
     public bool IsCustom { get; set; }
     public DateTime CreatedOnUtc { get; set; }
 
+    public Guid? UserId { get; set; }
+    public User? User { get; set; }
+
     public ICollection<AccessLog> AccessLogs { get; set; } = [];
 }
