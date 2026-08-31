@@ -1,31 +1,35 @@
+using System.Security.Cryptography;
 using smaller.Data;
 using smaller.Http.Responses;
 using smaller.Models;
 using smaller.utils;
 using Microsoft.EntityFrameworkCore;
+
 namespace smaller.Services;
 
-public class UrlShorteningService(ApplicationDbContext _context)
+public class UrlShorteningService(
+    ApplicationDbContext context,
+    RedisCacheService cacheService,
+    AccessLogQueue accessLogQueue)
 {
-    private readonly Random _random = new();
-
     public async Task<string> GenerateUniqueCode()
     {
         var codeChars = new char[ShortLinkSettings.Length];
         int maxValue = ShortLinkSettings.Alphabet.Length;
+        var bytes = new byte[ShortLinkSettings.Length];
 
         while (true)
         {
+            RandomNumberGenerator.Fill(bytes);
             for (var i = 0; i < ShortLinkSettings.Length; i++)
             {
-                var randomIndex = _random.Next(maxValue);
-
+                var randomIndex = bytes[i] % maxValue;
                 codeChars[i] = ShortLinkSettings.Alphabet[randomIndex];
             }
 
             var code = new string(codeChars);
 
-            if (!await _context.ShortenedUrls.AnyAsync(s => s.Code == code))
+            if (!await context.ShortenedUrls.AsNoTracking().AnyAsync(s => s.Code == code))
             {
                 return code;
             }
@@ -44,7 +48,6 @@ public class UrlShorteningService(ApplicationDbContext _context)
             }
         }
 
-
         var code = await GenerateUniqueCode();
 
         var shortenedUrl = new ShortenedUrl
@@ -56,8 +59,11 @@ public class UrlShorteningService(ApplicationDbContext _context)
             CreatedOnUtc = DateTime.UtcNow
         };
 
-        _context.ShortenedUrls.Add(shortenedUrl);
-        await _context.SaveChangesAsync();
+        context.ShortenedUrls.Add(shortenedUrl);
+        await context.SaveChangesAsync();
+
+        // Warm up cache
+        await cacheService.SetLongUrlAsync(code, shortenedUrl.LongUrl);
 
         DateOnly date = DateOnly.FromDateTime(shortenedUrl.CreatedOnUtc);
         return new ShortenedUrlResponse(
@@ -65,51 +71,76 @@ public class UrlShorteningService(ApplicationDbContext _context)
             shortenedUrl.LongUrl,
             shortenedUrl.Click,
             date
-            );
+        );
     }
 
-    public async Task<string?> GetLongUrlAsync(string code, string ipAdress, string userAgent)
+    public async Task<string?> GetLongUrlAsync(string code, string? ipAddress, string? userAgent)
     {
-        var entity = await _context.ShortenedUrls.FirstOrDefaultAsync(s => s.Code == code);
+        // 1. Try reading from Redis Cache first
+        var cachedLongUrl = await cacheService.GetLongUrlAsync(code);
+        ShortenedUrl? entity = null;
+
+        if (!string.IsNullOrEmpty(cachedLongUrl))
+        {
+            // Fetch entity for logging
+            entity = await context.ShortenedUrls
+                .AsNoTracking()
+                .FirstOrDefaultAsync(s => s.Code == code);
+        }
+        else
+        {
+            // Fallback to database
+            entity = await context.ShortenedUrls
+                .AsNoTracking()
+                .FirstOrDefaultAsync(s => s.Code == code);
+
+            if (entity == null) return null;
+
+            cachedLongUrl = entity.LongUrl;
+            await cacheService.SetLongUrlAsync(code, cachedLongUrl);
+        }
+
         if (entity == null) return null;
 
-        entity.Click += 1;
-
+        // 2. Queue access log asynchronously for batch persistence
         var accessLog = new AccessLog
         {
             Id = Guid.NewGuid(),
             ShortenedUrlId = entity.Id,
-            IpAdress = ipAdress ?? "Unknown",
-            UserAgent = userAgent ?? "Unknown",
+            IpAdress = string.IsNullOrWhiteSpace(ipAddress) ? "Unknown" : ipAddress,
+            UserAgent = string.IsNullOrWhiteSpace(userAgent) ? "Unknown" : userAgent,
             AccessDate = DateTime.UtcNow
         };
 
-        _context.AccessLogs.Add(accessLog);
+        await accessLogQueue.QueueAccessLogAsync(accessLog);
 
-        await _context.SaveChangesAsync();
-        return entity.LongUrl;
+        return cachedLongUrl;
     }
 
-    public async Task<ShortenedUrlResponse> DeleteShortUrlAsync(string code)
+    public async Task<ShortenedUrlResponse?> DeleteShortUrlAsync(string code)
     {
-        var entity = await _context.ShortenedUrls.FirstOrDefaultAsync(s => s.Code == code);
+        var entity = await context.ShortenedUrls.FirstOrDefaultAsync(s => s.Code == code);
 
         if (entity == null) return null;
 
-        _context.Remove(entity);
-        await _context.SaveChangesAsync();
+        context.Remove(entity);
+        await context.SaveChangesAsync();
+
+        // Invalidate cache
+        await cacheService.RemoveAsync(code);
+
         DateOnly date = DateOnly.FromDateTime(entity.CreatedOnUtc);
         return new ShortenedUrlResponse(
             entity.ShortUrl,
             entity.LongUrl,
             entity.Click,
             date
-         );
+        );
     }
 
-    public async Task<ShortenedUrlResponse> GetShortUrlAsync(string code)
+    public async Task<ShortenedUrlResponse?> GetShortUrlAsync(string code)
     {
-        var entity = await _context.ShortenedUrls.FirstOrDefaultAsync(s => s.Code == code);
+        var entity = await context.ShortenedUrls.AsNoTracking().FirstOrDefaultAsync(s => s.Code == code);
 
         if (entity == null) return null;
         DateOnly date = DateOnly.FromDateTime(entity.CreatedOnUtc);
@@ -118,22 +149,23 @@ public class UrlShorteningService(ApplicationDbContext _context)
             entity.LongUrl,
             entity.Click,
             date
-         );
+        );
     }
+
     public async Task<List<ShortenedUrlResponse>> GetAllUrlsAsync()
     {
-        var listResponse = await _context.ShortenedUrls.ToListAsync();
+        var listResponse = await context.ShortenedUrls.AsNoTracking().ToListAsync();
 
-        return [.. listResponse.Select(s =>
+        return listResponse.Select(s =>
         {
             DateOnly date = DateOnly.FromDateTime(s.CreatedOnUtc);
             return new ShortenedUrlResponse(s.ShortUrl, s.LongUrl, s.Click, date);
-        })];
+        }).ToList();
     }
 
     public async Task<int?> GetClickCouter(string code)
     {
-        var entity = await _context.ShortenedUrls.FirstOrDefaultAsync(s => s.Code == code);
+        var entity = await context.ShortenedUrls.AsNoTracking().FirstOrDefaultAsync(s => s.Code == code);
         return entity?.Click;
     }
 }

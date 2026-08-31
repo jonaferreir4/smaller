@@ -1,18 +1,15 @@
 using smaller.Http.Requests;
 using smaller.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace smaller.Controllers;
 
 [ApiController]
 [Route("")]
-public class ShortenedUrlController(
-    UrlShorteningService urlShorteningService,
-    IConfiguration _configuration
-    ) : Controller
+public class ShortenedUrlController(UrlShorteningService urlShorteningService) : Controller
 {
     private readonly UrlShorteningService _urlShorteningService = urlShorteningService;
-
 
     [HttpGet("api")]
     public IActionResult ApiRoot()
@@ -31,6 +28,7 @@ public class ShortenedUrlController(
     public async Task<IActionResult> GetShortenedUrl(string code)
     {
         var result = await _urlShorteningService.GetShortUrlAsync(code);
+        if (result == null) return NotFound();
         return Ok(result);
     }
 
@@ -38,13 +36,14 @@ public class ShortenedUrlController(
     public async Task<IActionResult> DeleteShortenedUrl(string code)
     {
         var result = await _urlShorteningService.DeleteShortUrlAsync(code);
+        if (result == null) return NotFound();
         return Ok(result);
     }
 
     [HttpPost("api/shorten")]
+    [EnableRateLimiting("shorten-policy")]
     public async Task<IActionResult> Shorten([FromBody] ShortenUrlRequest request)
     {
-
         if (!Uri.IsWellFormedUriString(request.Url, UriKind.Absolute))
         {
             return BadRequest("Invalid URL.");
@@ -52,7 +51,7 @@ public class ShortenedUrlController(
 
         try
         {
-            var  domain = Environment.GetEnvironmentVariable("DOMAIN_NAME");
+            var domain = Environment.GetEnvironmentVariable("DOMAIN_NAME") ?? Request.Host.Value;
             var baseUrl = $"{Request.Scheme}://{domain}";
             var result = await _urlShorteningService.CreateShortenedUrlAsync(request.Url, baseUrl);
             return Ok(result);
