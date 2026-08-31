@@ -57,6 +57,8 @@ services:
 
   traefik: 
     image: traefik:v3.5
+    environment:
+      - DOCKER_API_VERSION=1.40
     command: 
       - "--api.dashboard=true"
       - "--providers.docker=true"
