@@ -31,10 +31,25 @@ namespace smaller.Migrations
                     b.Property<DateTime>("AccessDate")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("Browser")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("DeviceType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
                     b.Property<string>("IpAdress")
                         .IsRequired()
                         .HasMaxLength(45)
                         .HasColumnType("character varying(45)");
+
+                    b.Property<string>("OperatingSystem")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
 
                     b.Property<Guid>("ShortenedUrlId")
                         .HasColumnType("uuid");
@@ -68,9 +83,21 @@ namespace smaller.Migrations
                     b.Property<DateTime>("CreatedOnUtc")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<DateTime?>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsCustom")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("LongUrl")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<int?>("MaxClicks")
+                        .HasColumnType("integer");
 
                     b.Property<string>("ShortUrl")
                         .IsRequired()
@@ -86,13 +113,13 @@ namespace smaller.Migrations
 
             modelBuilder.Entity("smaller.Models.AccessLog", b =>
                 {
-                    b.HasOne("smaller.Models.ShortenedUrl", "shortenedUrl")
+                    b.HasOne("smaller.Models.ShortenedUrl", "ShortenedUrl")
                         .WithMany("AccessLogs")
                         .HasForeignKey("ShortenedUrlId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("shortenedUrl");
+                    b.Navigation("ShortenedUrl");
                 });
 
             modelBuilder.Entity("smaller.Models.ShortenedUrl", b =>

@@ -25,23 +25,30 @@ public class ApplicationDbContext(DbContextOptions options) : DbContext(options)
                 .IsUnique();
 
             builder.HasMany(s => s.AccessLogs)
-            .WithOne(a => a.shortenedUrl)
+            .WithOne(a => a.ShortenedUrl)
             .HasForeignKey(a => a.ShortenedUrlId)
             .OnDelete(DeleteBehavior.Cascade);
         });
 
-
         modelBuilder.Entity<AccessLog>(builder =>
         {
-
             builder.HasKey(a => a.Id);
 
             builder.Property(a => a.IpAdress)
-            .IsRequired()
-            .HasMaxLength(45);
+                .IsRequired()
+                .HasMaxLength(45);
 
             builder.Property(a => a.UserAgent)
                 .HasMaxLength(512);
+
+            builder.Property(a => a.Browser)
+                .HasMaxLength(100);
+
+            builder.Property(a => a.OperatingSystem)
+                .HasMaxLength(100);
+
+            builder.Property(a => a.DeviceType)
+                .HasMaxLength(50);
         });
     }
 }
