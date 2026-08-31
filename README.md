@@ -194,3 +194,17 @@ Em ambiente de desenvolvimento ou quando configurado no pipeline de inicializaç
 *   Endpoint Swagger: `http://localhost:<porta>/swagger`
 
 Esta interface permite a inspeção dos schemas OpenAPI e o teste dos endpoints diretamente pelo navegador.
+
+---
+
+## 8. 🤖 Ambiente de Desenvolvimento Orientado a IA
+
+Este repositório está configurado para permitir desenvolvimento fluido e seguro utilizando **Assistentes de IA** (Google Antigravity, Claude, Copilot, Cursor, ChatGPT, Gemini).
+
+### Estrutura de Governança e Skills
+
+*   **[`AGENTS.md`](file:///home/jona/%C3%81rea%20de%20trabalho/smaller/AGENTS.md)**: Define as regras invioláveis de arquitetura em camadas, convenções C# 12 / .NET 8, persistência com EF Core, segurança OWASP e cobertura de testes.
+*   **[`CLAUDE.md`](file:///home/jona/%C3%81rea%20de%20trabalho/smaller/CLAUDE.md)**: Guia de referência rápida para comandos do ecossistema .NET, Docker e resumo relacional.
+*   **`.agents/skills/`**: Habilidades personalizadas de domínio (`smaller-create-endpoint`, `smaller-db-migration`, `smaller-architecture-guardrails`).
+*   **`.agents/skills/vendor/`**: Habilidades de comunidade mantidas por engenheiros sêniores (`csharp-dotnet-best-practices`, `efcore-best-practices`, `solid-clean-code`, `security-and-hardening`, `performance-optimization`, `xunit-testing-best-practices`).
+
