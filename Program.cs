@@ -36,6 +36,7 @@ builder.Services.AddStackExchangeRedisCache(options =>
 // Services Registration
 builder.Services.AddSingleton<RedisCacheService>();
 builder.Services.AddSingleton<AccessLogQueue>();
+builder.Services.AddSingleton<QrCodeService>();
 builder.Services.AddHostedService<AccessLogProcessor>();
 builder.Services.AddScoped<UrlShorteningService>();
 
@@ -57,15 +58,31 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
-    try
+    var logger = services.GetRequiredService<ILogger<Program>>();
+    var maxRetries = 5;
+    var delay = TimeSpan.FromSeconds(2);
+
+    for (int retry = 1; retry <= maxRetries; retry++)
     {
-        var context = services.GetRequiredService<ApplicationDbContext>();
-        context.Database.Migrate();
-    }
-    catch (Exception ex)
-    {
-        var logger = services.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "Ocorreu um erro ao aplicar as migrações.");
+        try
+        {
+            var context = services.GetRequiredService<ApplicationDbContext>();
+            context.Database.Migrate();
+            logger.LogInformation("Migrações do banco de dados aplicadas com sucesso.");
+            break;
+        }
+        catch (Exception ex)
+        {
+            if (retry == maxRetries)
+            {
+                logger.LogError(ex, "Ocorreu um erro definitivo ao aplicar as migrações após {MaxRetries} tentativas.", maxRetries);
+            }
+            else
+            {
+                logger.LogWarning("Tentativa {Retry}/{MaxRetries} de conexão com o banco de dados falhou. Tentando novamente em {Delay}s...", retry, maxRetries, delay.TotalSeconds);
+                System.Threading.Thread.Sleep(delay);
+            }
+        }
     }
 }
 
