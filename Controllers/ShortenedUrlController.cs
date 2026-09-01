@@ -71,11 +71,6 @@ public class ShortenedUrlController(
     [EnableRateLimiting("shorten-policy")]
     public async Task<IActionResult> Shorten([FromBody] ShortenUrlRequest request)
     {
-        if (!Uri.IsWellFormedUriString(request.Url, UriKind.Absolute))
-        {
-            return BadRequest("Invalid URL.");
-        }
-
         try
         {
             var baseUrl = GetBaseUrl();

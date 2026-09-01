@@ -55,6 +55,24 @@ public class UrlShorteningServiceTests
     }
 
     [Fact]
+    public async Task CreateShortenedUrlAsync_WithShopeeEcommerceUrl_ShouldSucceed()
+    {
+        // Arrange
+        var shopeeUrl = "http://shopee.com.br/KIT-10-CUECAS-BOX-BOXER-QUALIDADE-EXTREMA-M-G-GG-PRONTA-ENTREGA-i.123456789.987654321";
+        var request = new ShortenUrlRequest(shopeeUrl);
+        var baseUrl = "http://short.local";
+
+        // Act
+        var result = await _service.CreateShortenedUrlAsync(request, baseUrl);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(shopeeUrl, result.OriginalUrl);
+        Assert.StartsWith(baseUrl, result.ShortUrl);
+        Assert.Equal(7, result.Code.Length);
+    }
+
+    [Fact]
     public async Task CreateShortenedUrlAsync_WithCustomCode_ShouldUseCustomCode()
     {
         // Arrange
