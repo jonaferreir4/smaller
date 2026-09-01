@@ -90,22 +90,31 @@ public class AuthService(ApplicationDbContext context, IConfiguration configurat
 
     public string GenerateJwtToken(User user)
     {
-        var jwtSecret = configuration["JWT_SECRET"] ?? "SuperSecretKeySmallerSaaSProduction2026!Key";
+        var jwtSecret = Environment.GetEnvironmentVariable("JWT_SECRET") 
+            ?? configuration["JWT_SECRET"] 
+            ?? "SuperSecretKeySmallerSaaSProduction2026!Key";
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
+        var issuer = Environment.GetEnvironmentVariable("JWT_ISSUER") 
+            ?? configuration["JWT_ISSUER"] 
+            ?? "smaller-api";
+        var audience = Environment.GetEnvironmentVariable("JWT_AUDIENCE") 
+            ?? configuration["JWT_AUDIENCE"] 
+            ?? "smaller-client";
+
         var claims = new[]
         {
-            new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-            new Claim(JwtRegisteredClaimNames.Email, user.Email),
+            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            new Claim(ClaimTypes.Email, user.Email),
             new Claim(ClaimTypes.Role, user.Role),
             new Claim("plan", user.Plan),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
 
         var token = new JwtSecurityToken(
-            issuer: configuration["JWT_ISSUER"] ?? "smaller-api",
-            audience: configuration["JWT_AUDIENCE"] ?? "smaller-client",
+            issuer: issuer,
+            audience: audience,
             claims: claims,
             expires: DateTime.UtcNow.AddDays(30),
             signingCredentials: credentials
