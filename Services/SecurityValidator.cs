@@ -40,6 +40,11 @@ public static partial class SecurityValidator
         return true;
     }
 
+    private static readonly HashSet<string> ReservedSlugs = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "api", "dashboard", "profile", "admin", "login", "register", "healthz", "assets", "swagger", "docs"
+    };
+
     public static bool IsValidCustomCode(string code, out string errorMessage)
     {
         errorMessage = string.Empty;
@@ -50,7 +55,15 @@ public static partial class SecurityValidator
             return false;
         }
 
-        if (!CustomCodeRegex().IsMatch(code))
+        var trimmed = code.Trim();
+
+        if (ReservedSlugs.Contains(trimmed))
+        {
+            errorMessage = $"The custom slug '{trimmed}' is reserved by the system.";
+            return false;
+        }
+
+        if (!CustomCodeRegex().IsMatch(trimmed))
         {
             errorMessage = "Custom code must be 3-30 characters long and contain only alphanumeric characters, hyphens, or underscores.";
             return false;

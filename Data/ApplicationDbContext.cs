@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace smaller.Data;
 
-public class ApplicationDbContext(DbContextOptions options) : DbContext(options)
+public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : DbContext(options)
 {
     public DbSet<ShortenedUrl> ShortenedUrls { get; set; }
     public DbSet<AccessLog> AccessLogs { get; set; }
@@ -18,7 +18,8 @@ public class ApplicationDbContext(DbContextOptions options) : DbContext(options)
             builder.HasKey(s => s.Id);
 
             builder.Property(shortenedUrl => shortenedUrl.Code)
-                .HasMaxLength(ShortLinkSettings.Length);
+                .HasMaxLength(30)
+                .IsRequired();
 
             builder.HasIndex(shortenedUrl => shortenedUrl.Code)
                 .IsUnique();
