@@ -21,11 +21,37 @@ public class AccessLogProcessor(
 
         try
         {
-            await foreach (var log in queue.ReadAccessLogsAsync(stoppingToken))
+            while (!stoppingToken.IsCancellationRequested)
             {
-                buffer.Add(log);
+                var timeout = buffer.Count > 0 
+                    ? TimeSpan.FromMilliseconds(Math.Max(100, (BatchTimeout - (DateTime.UtcNow - lastFlushTime)).TotalMilliseconds))
+                    : BatchTimeout;
 
-                if (buffer.Count >= BatchSize || (DateTime.UtcNow - lastFlushTime) >= BatchTimeout)
+                using var timeoutCts = new CancellationTokenSource(timeout);
+                using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken, timeoutCts.Token);
+
+                try
+                {
+                    if (await queue.Reader.WaitToReadAsync(linkedCts.Token))
+                    {
+                        while (queue.Reader.TryRead(out var log))
+                        {
+                            buffer.Add(log);
+                            if (buffer.Count >= BatchSize)
+                            {
+                                await FlushBatchAsync(buffer, stoppingToken);
+                                lastFlushTime = DateTime.UtcNow;
+                                break;
+                            }
+                        }
+                    }
+                }
+                catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !stoppingToken.IsCancellationRequested)
+                {
+                    // Timeout atingido: cai para checagem de flush abaixo
+                }
+
+                if (buffer.Count > 0 && (DateTime.UtcNow - lastFlushTime) >= BatchTimeout)
                 {
                     await FlushBatchAsync(buffer, stoppingToken);
                     lastFlushTime = DateTime.UtcNow;

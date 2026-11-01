@@ -66,6 +66,28 @@ public class RedisCacheService(
         }
     }
 
+    public async Task<ShortenedUrlCacheItem?> GetUrlCacheAsync(string code, CancellationToken cancellationToken = default)
+    {
+        var rawJson = await GetLongUrlAsync(code, cancellationToken);
+        if (string.IsNullOrEmpty(rawJson)) return null;
+
+        try
+        {
+            return System.Text.Json.JsonSerializer.Deserialize<ShortenedUrlCacheItem>(rawJson);
+        }
+        catch
+        {
+            // Fallback para caso seja apenas a string pura da LongUrl antiga
+            return new ShortenedUrlCacheItem(Guid.Empty, rawJson, null, null);
+        }
+    }
+
+    public async Task SetUrlCacheAsync(string code, ShortenedUrlCacheItem item, CancellationToken cancellationToken = default)
+    {
+        var json = System.Text.Json.JsonSerializer.Serialize(item);
+        await SetLongUrlAsync(code, json, cancellationToken);
+    }
+
     public async Task RemoveAsync(string code, CancellationToken cancellationToken = default)
     {
         var cacheKey = GetCacheKey(code);
@@ -86,3 +108,5 @@ public class RedisCacheService(
 
     private static string GetCacheKey(string code) => $"short_url:{code}";
 }
+
+public record ShortenedUrlCacheItem(Guid Id, string LongUrl, DateTime? ExpiresAtUtc, int? MaxClicks);

@@ -15,6 +15,8 @@ public class AccessLogQueue
         return _channel.Writer.WriteAsync(log);
     }
 
+    public ChannelReader<AccessLog> Reader => _channel.Reader;
+
     public IAsyncEnumerable<AccessLog> ReadAccessLogsAsync(CancellationToken cancellationToken)
     {
         return _channel.Reader.ReadAllAsync(cancellationToken);
