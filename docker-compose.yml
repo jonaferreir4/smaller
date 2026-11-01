@@ -27,7 +27,9 @@ services:
       - redis_data:/data
 
   app:
-    build: .
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     container_name: smaller-app
     restart: always
     # Porta exposta apenas para acesso direto durante desenvolvimento
@@ -67,7 +69,7 @@ services:
 
   frontend:
     build:
-      context: ../smaller-front
+      context: ./frontend
       dockerfile: Dockerfile
     container_name: smaller-frontend
     restart: always
