@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <defs>
+    <linearGradient id="favBg" x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#27272a" />
+      <stop offset="50%" stop-color="#18181b" />
+      <stop offset="100%" stop-color="#09090b" />
+    </linearGradient>
+    <linearGradient id="favBorder" x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="rgba(255, 255, 255, 0.5)" />
+      <stop offset="100%" stop-color="rgba(255, 255, 255, 0.15)" />
+    </linearGradient>
+    <linearGradient id="favTop" x1="25" y1="26" x2="70" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="100%" stop-color="#E4E4E7" />
+    </linearGradient>
+    <linearGradient id="favBottom" x1="75" y1="74" x2="30" y2="44" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#A1A1AA" />
+      <stop offset="100%" stop-color="#FFFFFF" />
+    </linearGradient>
+  </defs>
+
+  <!-- High-contrast Squircle for 16x16 / 32x32 Tab visibility -->
+  <rect
+    x="4"
+    y="4"
+    width="92"
+    height="92"
+    rx="24"
+    fill="url(#favBg)"
+    stroke="url(#favBorder)"
+    stroke-width="3"
+  />
+
+  <!-- Top Link forming upper part of S (bold for small icon rendering) -->
+  <path
+    d="M 64 29 H 46 C 35 29 27 37 27 48 C 27 53.5 30.5 58 36.5 60.5 L 48 62.5"
+    stroke="url(#favTop)"
+    stroke-width="10.5"
+    stroke-linecap="round"
+  />
+
+  <!-- Bottom Link forming lower part of S -->
+  <path
+    d="M 36 71 H 54 C 65 71 73 63 73 52 C 73 46.5 69.5 42 63.5 39.5 L 52 37.5"
+    stroke="url(#favBottom)"
+    stroke-width="10.5"
+    stroke-linecap="round"
+  />
+
+  <!-- Compression Center Pin -->
+  <circle cx="50" cy="50" r="5" fill="#FFFFFF" />
+</svg>
