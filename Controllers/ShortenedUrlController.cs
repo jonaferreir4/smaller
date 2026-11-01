@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using smaller.Http.Requests;
 using smaller.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 
@@ -22,10 +23,15 @@ public class ShortenedUrlController(
     }
 
     [HttpGet("api/links")]
-    public async Task<IActionResult> GetAllShortenedUrls()
+    [Authorize]
+    public async Task<IActionResult> GetAllShortenedUrls([FromQuery] int page = 1, [FromQuery] int pageSize = 50)
     {
+        var userId = GetUserId();
+        if (userId == null) return Unauthorized();
+
         var baseUrl = GetBaseUrl();
-        var result = await _urlShorteningService.GetAllUrlsAsync(baseUrl);
+        var role = GetUserRole();
+        var result = await _urlShorteningService.GetUserUrlsAsync(baseUrl, userId.Value, role, page, pageSize);
         return Ok(result);
     }
 
@@ -59,12 +65,25 @@ public class ShortenedUrlController(
     }
 
     [HttpDelete("api/links/{code}")]
+    [Authorize]
     public async Task<IActionResult> DeleteShortenedUrl(string code)
     {
+        var userId = GetUserId();
+        if (userId == null) return Unauthorized();
+
         var baseUrl = GetBaseUrl();
-        var result = await _urlShorteningService.DeleteShortUrlAsync(code, baseUrl);
-        if (result == null) return NotFound();
-        return Ok(result);
+        var role = GetUserRole();
+
+        try
+        {
+            var result = await _urlShorteningService.DeleteShortUrlAsync(code, baseUrl, userId.Value, role);
+            if (result == null) return NotFound();
+            return Ok(result);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
+        }
     }
 
     [HttpPost("api/shorten")]
@@ -104,5 +123,16 @@ public class ShortenedUrlController(
     {
         var domain = Environment.GetEnvironmentVariable("DOMAIN_NAME") ?? Request.Host.Value;
         return $"{Request.Scheme}://{domain}";
+    }
+
+    private Guid? GetUserId()
+    {
+        var claim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return Guid.TryParse(claim, out var id) ? id : null;
+    }
+
+    private string? GetUserRole()
+    {
+        return User.FindFirstValue(ClaimTypes.Role);
     }
 }

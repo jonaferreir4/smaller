@@ -44,7 +44,6 @@ public class UrlShorteningService(
             throw new InvalidOperationException(urlError);
         }
 
-        // Plan Quota Check
         if (userId.HasValue)
         {
             var user = await context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userId.Value);
@@ -111,10 +110,13 @@ public class UrlShorteningService(
         context.ShortenedUrls.Add(shortenedUrl);
         await context.SaveChangesAsync();
 
-        // Warm up cache
         if (shortenedUrl.IsActive && (!shortenedUrl.ExpiresAtUtc.HasValue || shortenedUrl.ExpiresAtUtc > DateTime.UtcNow))
         {
-            await cacheService.SetLongUrlAsync(code, shortenedUrl.LongUrl);
+            await cacheService.SetUrlCacheAsync(code, new ShortenedUrlCacheItem(
+                shortenedUrl.Id,
+                shortenedUrl.LongUrl,
+                shortenedUrl.ExpiresAtUtc,
+                shortenedUrl.MaxClicks));
         }
 
         return ToResponse(shortenedUrl, baseUrl);
@@ -122,25 +124,57 @@ public class UrlShorteningService(
 
     public async Task<string?> GetLongUrlAsync(string code, string? ipAddress, string? userAgent)
     {
+        var cached = await cacheService.GetUrlCacheAsync(code);
+        if (cached != null)
+        {
+            if (cached.ExpiresAtUtc.HasValue && cached.ExpiresAtUtc.Value <= DateTime.UtcNow)
+            {
+                await cacheService.RemoveAsync(code);
+                return null;
+            }
+
+            if (!cached.MaxClicks.HasValue)
+            {
+                if (cached.Id != Guid.Empty)
+                {
+                    await accessLogQueue.QueueAccessLogAsync(new AccessLog
+                    {
+                        Id = Guid.NewGuid(),
+                        ShortenedUrlId = cached.Id,
+                        IpAdress = string.IsNullOrWhiteSpace(ipAddress) ? "Unknown" : ipAddress,
+                        UserAgent = string.IsNullOrWhiteSpace(userAgent) ? "Unknown" : userAgent,
+                        AccessDate = DateTime.UtcNow
+                    });
+                }
+                return cached.LongUrl;
+            }
+        }
+
         var entity = await context.ShortenedUrls
             .AsNoTracking()
             .FirstOrDefaultAsync(s => s.Code == code);
 
         if (entity == null || !entity.IsActive) return null;
 
-        // Expiration Check
         if (entity.ExpiresAtUtc.HasValue && entity.ExpiresAtUtc.Value <= DateTime.UtcNow)
         {
             return null;
         }
 
-        // Max Clicks Check
         if (entity.MaxClicks.HasValue && entity.Click >= entity.MaxClicks.Value)
         {
             return null;
         }
 
-        // Queue access log asynchronously for batch persistence
+        if (!entity.MaxClicks.HasValue)
+        {
+            await cacheService.SetUrlCacheAsync(code, new ShortenedUrlCacheItem(
+                entity.Id,
+                entity.LongUrl,
+                entity.ExpiresAtUtc,
+                entity.MaxClicks));
+        }
+
         var accessLog = new AccessLog
         {
             Id = Guid.NewGuid(),
@@ -155,16 +189,27 @@ public class UrlShorteningService(
         return entity.LongUrl;
     }
 
-    public async Task<ShortenedUrlResponse?> DeleteShortUrlAsync(string code, string baseUrl)
+    public async Task<ShortenedUrlResponse?> DeleteShortUrlAsync(string code, string baseUrl, Guid? userId = null, string? role = null)
     {
         var entity = await context.ShortenedUrls.FirstOrDefaultAsync(s => s.Code == code);
 
         if (entity == null) return null;
 
+        if (entity.UserId.HasValue)
+        {
+            if (!userId.HasValue || (entity.UserId != userId.Value && role != "Admin"))
+            {
+                throw new UnauthorizedAccessException("You are not authorized to delete this link.");
+            }
+        }
+        else if (role != "Admin")
+        {
+            throw new UnauthorizedAccessException("Anonymous links can only be removed by administrators.");
+        }
+
         context.Remove(entity);
         await context.SaveChangesAsync();
 
-        // Invalidate cache
         await cacheService.RemoveAsync(code);
 
         return ToResponse(entity, baseUrl);
@@ -178,9 +223,34 @@ public class UrlShorteningService(
         return ToResponse(entity, baseUrl);
     }
 
+    public async Task<List<ShortenedUrlResponse>> GetUserUrlsAsync(string baseUrl, Guid userId, string? role = null, int page = 1, int pageSize = 50)
+    {
+        page = Math.Max(1, page);
+        pageSize = Math.Clamp(pageSize, 1, 100);
+
+        var query = context.ShortenedUrls.AsNoTracking();
+
+        if (role != "Admin")
+        {
+            query = query.Where(s => s.UserId == userId);
+        }
+
+        var listResponse = await query
+            .OrderByDescending(s => s.CreatedOnUtc)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return listResponse.Select(s => ToResponse(s, baseUrl)).ToList();
+    }
+
     public async Task<List<ShortenedUrlResponse>> GetAllUrlsAsync(string baseUrl)
     {
-        var listResponse = await context.ShortenedUrls.AsNoTracking().ToListAsync();
+        var listResponse = await context.ShortenedUrls
+            .AsNoTracking()
+            .OrderByDescending(s => s.CreatedOnUtc)
+            .Take(100)
+            .ToListAsync();
 
         return listResponse.Select(s => ToResponse(s, baseUrl)).ToList();
     }
