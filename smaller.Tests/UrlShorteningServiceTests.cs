@@ -151,4 +151,84 @@ public class UrlShorteningServiceTests
         // Assert
         Assert.Null(result);
     }
+
+    [Fact]
+    public async Task DeleteShortUrlAsync_WhenUserDoesNotOwnLink_ShouldThrowUnauthorizedAccessException()
+    {
+        // Arrange
+        var ownerId = Guid.NewGuid();
+        var attackerId = Guid.NewGuid();
+        var request = new ShortenUrlRequest("https://example.com/protected-link");
+        var created = await _service.CreateShortenedUrlAsync(request, "http://short.local", ownerId);
+
+        // Act & Assert
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            _service.DeleteShortUrlAsync(created.Code, "http://short.local", attackerId, "User"));
+    }
+
+    [Fact]
+    public async Task DeleteShortUrlAsync_WhenUserOwnsLink_ShouldSucceed()
+    {
+        // Arrange
+        var ownerId = Guid.NewGuid();
+        var request = new ShortenUrlRequest("https://example.com/my-link");
+        var created = await _service.CreateShortenedUrlAsync(request, "http://short.local", ownerId);
+
+        // Act
+        var deleted = await _service.DeleteShortUrlAsync(created.Code, "http://short.local", ownerId, "User");
+
+        // Assert
+        Assert.NotNull(deleted);
+        Assert.Equal(created.Code, deleted.Code);
+        Assert.False(await _dbContext.ShortenedUrls.AnyAsync(s => s.Code == created.Code));
+    }
+
+    [Fact]
+    public async Task GetUserUrlsAsync_ShouldReturnOnlyUserOwnedLinks()
+    {
+        // Arrange
+        var user1Id = Guid.NewGuid();
+        var user2Id = Guid.NewGuid();
+
+        await _service.CreateShortenedUrlAsync(new ShortenUrlRequest("https://example.com/u1-link1"), "http://short.local", user1Id);
+        await _service.CreateShortenedUrlAsync(new ShortenUrlRequest("https://example.com/u1-link2"), "http://short.local", user1Id);
+        await _service.CreateShortenedUrlAsync(new ShortenUrlRequest("https://example.com/u2-link1"), "http://short.local", user2Id);
+
+        // Act
+        var user1Links = await _service.GetUserUrlsAsync("http://short.local", user1Id, "User");
+
+        // Assert
+        Assert.Equal(2, user1Links.Count);
+        Assert.All(user1Links, l => Assert.Contains("u1-link", l.OriginalUrl));
+    }
+
+    [Fact]
+    public async Task CreateShortenedUrlAsync_WithCustomSlugUpTo30Chars_ShouldSucceed()
+    {
+        // Arrange
+        var customSlug = "blackfriday-promocao-especial"; // 29 chars
+        var request = new ShortenUrlRequest("https://example.com/promo", CustomCode: customSlug);
+
+        // Act
+        var result = await _service.CreateShortenedUrlAsync(request, "http://short.local");
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(customSlug, result.Code);
+        Assert.True(result.IsCustom);
+    }
+
+    [Fact]
+    public void IsValidCustomCode_WithReservedSlug_ShouldReturnFalse()
+    {
+        // Arrange
+        var reserved = "dashboard";
+
+        // Act
+        var isValid = SecurityValidator.IsValidCustomCode(reserved, out var error);
+
+        // Assert
+        Assert.False(isValid);
+        Assert.Contains("reserved", error, StringComparison.OrdinalIgnoreCase);
+    }
 }
