@@ -67,7 +67,7 @@ export default function Home() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto py-8 sm:py-16 space-y-8">
+    <div className="w-full max-w-2xl mx-auto py-2 sm:py-4 space-y-6">
       {/* Hero Section */}
       <section className="text-center space-y-2">
         <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">

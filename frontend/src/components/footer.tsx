@@ -3,7 +3,7 @@ import Logo from "./logo";
 
 export function Footer() {
   return (
-    <footer className="border-t border-zinc-200 dark:border-zinc-900 bg-zinc-50/80 dark:bg-zinc-950/60 py-6 text-zinc-500 text-xs transition-colors">
+    <footer className="border-t border-zinc-200 dark:border-zinc-900 bg-zinc-50/80 dark:bg-zinc-950/60 py-4 text-zinc-500 text-xs transition-colors">
       <div className="container mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <Link to="/" aria-label="Smaller Home">
