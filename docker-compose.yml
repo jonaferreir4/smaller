@@ -61,12 +61,12 @@ services:
     labels:
       - 'traefik.enable=true'
       # Roteamento para a API (ex: /api/shorten, /api/links)
-      - 'traefik.http.routers.smaller-api.rule=Host(`${DOMAIN_NAME}`) && PathPrefix(`/api`)'
+      - 'traefik.http.routers.smaller-api.rule=(Host(`${DOMAIN_NAME}`) || Host(`localhost`)) && PathPrefix(`/api`)'
       - 'traefik.http.routers.smaller-api.entrypoints=web'
       - 'traefik.http.routers.smaller-api.priority=30'
       # Roteamento para redirecionamento de short codes (ex: /AbCdEfG ou /blackfriday)
       # PathRegexp v3: captura paths com 3 a 30 caracteres alfanuméricos, hífen ou underscore
-      - 'traefik.http.routers.smaller-redirect.rule=Host(`${DOMAIN_NAME}`) && PathRegexp(`^/[A-Za-z0-9_-]{3,30}$$`)'
+      - 'traefik.http.routers.smaller-redirect.rule=(Host(`${DOMAIN_NAME}`) || Host(`localhost`)) && PathRegexp(`^/[A-Za-z0-9_-]{3,30}$$`)'
       - 'traefik.http.routers.smaller-redirect.entrypoints=web'
       - 'traefik.http.routers.smaller-redirect.priority=20'
       - 'traefik.http.services.smaller-service.loadbalancer.server.port=5000'
@@ -82,11 +82,11 @@ services:
     labels:
       - 'traefik.enable=true'
       # Rotas específicas do frontend com prioridade 25 para não colidir com slugs customizados
-      - 'traefik.http.routers.smaller-frontend-routes.rule=Host(`${DOMAIN_NAME}`) && (Path(`/`, `/dashboard`, `/profile`, `/termos`, `/privacidade`) || PathPrefix(`/assets/`))'
+      - 'traefik.http.routers.smaller-frontend-routes.rule=(Host(`${DOMAIN_NAME}`) || Host(`localhost`)) && (Path(`/`) || Path(`/dashboard`) || Path(`/profile`) || Path(`/termos`) || Path(`/privacidade`) || PathPrefix(`/assets/`) || Path(`/robots.txt`) || Path(`/sitemap.xml`) || PathPrefix(`/favicon`))'
       - 'traefik.http.routers.smaller-frontend-routes.entrypoints=web'
       - 'traefik.http.routers.smaller-frontend-routes.priority=25'
       # Catch-all: tudo que não é /api nem short code vai para o frontend SPA
-      - 'traefik.http.routers.smaller-frontend.rule=Host(`${DOMAIN_NAME}`)'
+      - 'traefik.http.routers.smaller-frontend.rule=Host(`${DOMAIN_NAME}`) || Host(`localhost`)'
       - 'traefik.http.routers.smaller-frontend.entrypoints=web'
       - 'traefik.http.routers.smaller-frontend.priority=10'
       - 'traefik.http.services.smaller-frontend.loadbalancer.server.port=80'
