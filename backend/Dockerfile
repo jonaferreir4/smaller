@@ -2,12 +2,13 @@
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
-# Copia arquivos do projeto para o container
-COPY . .
+# Copia e restaura dependências apenas do projeto da API
+COPY smaller.csproj ./
+RUN dotnet restore smaller.csproj
 
-# Restaura dependências e compila
-RUN dotnet restore
-RUN dotnet publish -c Release -o /app
+# Copia o restante dos arquivos e compila para produção
+COPY . .
+RUN dotnet publish smaller.csproj -c Release -o /app --no-restore
 
 # Etapa 2: Runtime
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
