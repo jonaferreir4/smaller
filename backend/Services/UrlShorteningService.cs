@@ -44,6 +44,11 @@ public class UrlShorteningService(
             throw new InvalidOperationException(urlError);
         }
 
+        if (request.MaxClicks.HasValue && request.MaxClicks.Value <= 0)
+        {
+            throw new InvalidOperationException("Max clicks must be greater than zero.");
+        }
+
         if (userId.HasValue)
         {
             var user = await context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userId.Value);
@@ -219,7 +224,7 @@ public class UrlShorteningService(
     {
         var entity = await context.ShortenedUrls.AsNoTracking().FirstOrDefaultAsync(s => s.Code == code);
 
-        if (entity == null) return null;
+        if (entity == null || !entity.IsActive) return null;
         return ToResponse(entity, baseUrl);
     }
 
@@ -262,7 +267,7 @@ public class UrlShorteningService(
             .Include(s => s.AccessLogs)
             .FirstOrDefaultAsync(s => s.Code == code);
 
-        if (entity == null) return null;
+        if (entity == null || !entity.IsActive) return null;
 
         var logs = entity.AccessLogs;
 

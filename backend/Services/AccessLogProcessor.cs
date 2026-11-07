@@ -86,10 +86,20 @@ public class AccessLogProcessor(
 
             foreach (var log in logs)
             {
+                if (log.UserAgent != null && log.UserAgent.Length > 500)
+                {
+                    log.UserAgent = log.UserAgent[..500];
+                }
+
+                if (log.IpAdress != null && log.IpAdress.Length > 45)
+                {
+                    log.IpAdress = log.IpAdress[..45];
+                }
+
                 var uaInfo = UserAgentParser.Parse(log.UserAgent);
-                log.Browser = uaInfo.Browser;
-                log.OperatingSystem = uaInfo.OperatingSystem;
-                log.DeviceType = uaInfo.DeviceType;
+                log.Browser = uaInfo.Browser.Length > 100 ? uaInfo.Browser[..100] : uaInfo.Browser;
+                log.OperatingSystem = uaInfo.OperatingSystem.Length > 100 ? uaInfo.OperatingSystem[..100] : uaInfo.OperatingSystem;
+                log.DeviceType = uaInfo.DeviceType.Length > 50 ? uaInfo.DeviceType[..50] : uaInfo.DeviceType;
             }
 
             dbContext.AccessLogs.AddRange(logs);

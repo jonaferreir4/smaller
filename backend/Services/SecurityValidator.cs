@@ -19,6 +19,12 @@ public static partial class SecurityValidator
             return false;
         }
 
+        if (url.Length > 2048)
+        {
+            errorMessage = "URL exceeds maximum allowed length of 2048 characters.";
+            return false;
+        }
+
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
         {
             errorMessage = "Invalid URL format.";
@@ -42,7 +48,7 @@ public static partial class SecurityValidator
 
     private static readonly HashSet<string> ReservedSlugs = new(StringComparer.OrdinalIgnoreCase)
     {
-        "api", "dashboard", "profile", "admin", "login", "register", "healthz", "assets", "swagger", "docs"
+        "api", "dashboard", "profile", "admin", "login", "register", "healthz", "assets", "swagger", "docs", "termos", "privacidade", "terms", "privacy"
     };
 
     public static bool IsValidCustomCode(string code, out string errorMessage)
@@ -108,6 +114,11 @@ public static partial class SecurityValidator
     {
         if (IPAddress.IsLoopback(ip)) return true;
 
+        if (ip.IsIPv4MappedToIPv6)
+        {
+            ip = ip.MapToIPv4();
+        }
+
         if (ip.AddressFamily == AddressFamily.InterNetwork)
         {
             var bytes = ip.GetAddressBytes();
@@ -124,12 +135,19 @@ public static partial class SecurityValidator
             // 169.254.0.0/16 (Link-local)
             if (bytes[0] == 169 && bytes[1] == 254) return true;
 
+            // 100.64.0.0/10 (Carrier-grade NAT)
+            if (bytes[0] == 100 && bytes[1] >= 64 && bytes[1] <= 127) return true;
+
             // 0.0.0.0/8
             if (bytes[0] == 0) return true;
         }
         else if (ip.AddressFamily == AddressFamily.InterNetworkV6)
         {
             if (ip.IsIPv6LinkLocal || ip.IsIPv6SiteLocal) return true;
+
+            // fc00::/7 (Unique Local Address)
+            var bytes = ip.GetAddressBytes();
+            if ((bytes[0] & 0xfe) == 0xfc) return true;
         }
 
         return false;

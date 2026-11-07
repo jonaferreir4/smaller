@@ -4,11 +4,13 @@ using smaller.Http.Responses;
 using smaller.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace smaller.Controllers;
 
 [ApiController]
 [Route("api/auth")]
+[EnableRateLimiting("auth-policy")]
 public class AuthController(AuthService authService) : ControllerBase
 {
     [HttpPost("register")]

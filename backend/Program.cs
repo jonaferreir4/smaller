@@ -69,11 +69,21 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
+var dbPassword = Environment.GetEnvironmentVariable("DB_PASSWORD");
+if (string.IsNullOrWhiteSpace(dbPassword))
+{
+    if (builder.Environment.IsProduction())
+    {
+        throw new InvalidOperationException("DB_PASSWORD environment variable is required in production.");
+    }
+    dbPassword = "12345";
+}
+
 var connectionString = $"Host={Environment.GetEnvironmentVariable("DB_HOST") ?? "localhost"};" +
                        $"Port={Environment.GetEnvironmentVariable("DB_PORT") ?? "5432"};" +
                        $"Database={Environment.GetEnvironmentVariable("DB_NAME") ?? "smallerdb"};" +
                        $"Username={Environment.GetEnvironmentVariable("DB_USER") ?? "postgres"};" +
-                       $"Password={Environment.GetEnvironmentVariable("DB_PASSWORD") ?? "12345"}";
+                       $"Password={dbPassword}";
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(connectionString));
@@ -89,7 +99,21 @@ builder.Services.AddStackExchangeRedisCache(options =>
 });
 
 // JWT Authentication Setup
-var jwtSecret = Environment.GetEnvironmentVariable("JWT_SECRET") ?? "SuperSecretKeySmallerSaaSProduction2026!Key";
+var jwtSecret = Environment.GetEnvironmentVariable("JWT_SECRET") 
+    ?? builder.Configuration["JWT_SECRET"];
+
+if (string.IsNullOrWhiteSpace(jwtSecret) || Encoding.UTF8.GetByteCount(jwtSecret) < 32)
+{
+    if (builder.Environment.IsDevelopment())
+    {
+        jwtSecret = "DevSecretKeySmallerSaaS_MustBeAtLeast32BytesLong!";
+    }
+    else
+    {
+        throw new InvalidOperationException("JWT_SECRET environment variable is required and must be at least 32 bytes (256 bits) long in production.");
+    }
+}
+
 var keyBytes = Encoding.UTF8.GetBytes(jwtSecret);
 
 builder.Services.AddAuthentication(options =>
@@ -135,6 +159,28 @@ builder.Services.AddRateLimiter(options =>
                 QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
                 QueueLimit = 2
             }));
+
+    options.AddPolicy("auth-policy", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "anonymous",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(1),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0
+            }));
+
+    options.AddPolicy("redirect-policy", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "anonymous",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 120,
+                Window = TimeSpan.FromMinutes(1),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 5
+            }));
 });
 
 var app = builder.Build();
@@ -160,6 +206,7 @@ using (var scope = app.Services.CreateScope())
             if (retry == maxRetries)
             {
                 logger.LogError(ex, "Ocorreu um erro definitivo ao aplicar as migrações após {MaxRetries} tentativas.", maxRetries);
+                throw new InvalidOperationException($"Ocorreu um erro definitivo ao aplicar as migrações após {maxRetries} tentativas.", ex);
             }
             else
             {
@@ -205,8 +252,14 @@ app.Use(async (context, next) =>
     await next();
 });
 
-app.UseSwagger();
-app.UseSwaggerUI();
+var enableSwagger = app.Environment.IsDevelopment() || 
+    string.Equals(Environment.GetEnvironmentVariable("ENABLE_SWAGGER"), "true", StringComparison.OrdinalIgnoreCase);
+
+if (enableSwagger)
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
 
 app.UseRouting();
 app.UseRateLimiter();

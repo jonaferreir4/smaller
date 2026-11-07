@@ -26,9 +26,9 @@ public class AuthService(ApplicationDbContext context, IConfiguration configurat
             throw new InvalidOperationException("Email is already registered.");
         }
 
-        if (request.Password.Length < 6)
+        if (request.Password.Length < 8)
         {
-            throw new InvalidOperationException("Password must be at least 6 characters long.");
+            throw new InvalidOperationException("Password must be at least 8 characters long.");
         }
 
         var user = new User
@@ -91,8 +91,12 @@ public class AuthService(ApplicationDbContext context, IConfiguration configurat
     public string GenerateJwtToken(User user)
     {
         var jwtSecret = Environment.GetEnvironmentVariable("JWT_SECRET") 
-            ?? configuration["JWT_SECRET"] 
-            ?? "SuperSecretKeySmallerSaaSProduction2026!Key";
+            ?? configuration["JWT_SECRET"];
+
+        if (string.IsNullOrWhiteSpace(jwtSecret) || Encoding.UTF8.GetByteCount(jwtSecret) < 32)
+        {
+            throw new InvalidOperationException("JWT_SECRET is missing or does not meet the minimum length requirement (32 bytes).");
+        }
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 

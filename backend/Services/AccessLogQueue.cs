@@ -5,14 +5,16 @@ namespace smaller.Services;
 
 public class AccessLogQueue
 {
-    private readonly Channel<AccessLog> _channel = Channel.CreateUnbounded<AccessLog>(new UnboundedChannelOptions
+    private readonly Channel<AccessLog> _channel = Channel.CreateBounded<AccessLog>(new BoundedChannelOptions(10_000)
     {
-        SingleReader = true
+        SingleReader = true,
+        FullMode = BoundedChannelFullMode.DropOldest
     });
 
     public ValueTask QueueAccessLogAsync(AccessLog log)
     {
-        return _channel.Writer.WriteAsync(log);
+        _channel.Writer.TryWrite(log);
+        return ValueTask.CompletedTask;
     }
 
     public ChannelReader<AccessLog> Reader => _channel.Reader;

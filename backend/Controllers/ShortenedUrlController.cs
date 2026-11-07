@@ -106,6 +106,7 @@ public class ShortenedUrlController(
     }
 
     [HttpGet("{code}")]
+    [EnableRateLimiting("redirect-policy")]
     public async Task<IActionResult> RedirectToLongUrl(string code)
     {
         var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
