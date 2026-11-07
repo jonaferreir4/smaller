@@ -101,8 +101,7 @@ export const ProfilePage: React.FC = () => {
               </span>
             </div>
             <p className="text-xs text-zinc-600 dark:text-zinc-400">
-              Membro desde <span className="text-zinc-900 dark:text-zinc-300">{createdDate}</span> · Permissão:{" "}
-              <span className="text-zinc-900 dark:text-zinc-300 capitalize">{user.role}</span>
+              Membro desde <span className="text-zinc-900 dark:text-zinc-300">{createdDate}</span>
             </p>
           </div>
         </div>

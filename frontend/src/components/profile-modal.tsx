@@ -43,7 +43,6 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ onClose, onOpenKeys 
               <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
                 Plano {user.plan}
               </span>
-              <span className="text-xs text-slate-400 uppercase tracking-wider">{user.role}</span>
             </div>
           </div>
         </div>
