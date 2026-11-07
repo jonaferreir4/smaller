@@ -9,7 +9,7 @@ import { ProfileBillingTab } from "../components/profile/profile-billing-tab";
 import { Key, User as UserIcon, CreditCard, Shield } from "lucide-react";
 
 export const ProfilePage: React.FC = () => {
-  const { user, refreshProfile } = useAuth();
+  const { user, refreshProfile, isLoading: isAuthLoading } = useAuth();
   const { keys, fetchKeys, createKey, revokeKey, isLoading: isKeysLoading } = useApiKeys();
   const { isCopied: copiedKey, copy: handleCopyKey } = useCopyToClipboard();
 
@@ -21,6 +21,14 @@ export const ProfilePage: React.FC = () => {
     refreshProfile();
     fetchKeys();
   }, [refreshProfile, fetchKeys]);
+
+  if (isAuthLoading && !user) {
+    return (
+      <div className="min-h-[50vh] flex items-center justify-center">
+        <div className="w-6 h-6 border-2 border-zinc-400 border-t-zinc-900 dark:border-t-zinc-100 rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   if (!user) {
     return (

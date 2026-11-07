@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect, useCallback } from "react";
+import React, { createContext, useState, useEffect, useCallback, useMemo } from "react";
 import type { ReactNode } from "react";
 import axios from "axios";
 import { api } from "../services/axios";
@@ -33,89 +33,108 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       setIsLoading(true);
       const response = await api.get<UserProfileResponse>("/auth/me", {
-        headers: { Authorization: `Bearer ${activeToken}` }
+        headers: { Authorization: `Bearer ${activeToken}` },
       });
       setUser(response.data);
       setError(null);
-    } catch {
-      localStorage.removeItem("smaller_token");
-      setToken(null);
-      setUser(null);
+    } catch (err: unknown) {
+      // Apenas revoga a sessão se for erro 401 (token expirado ou inválido)
+      // Não desconecta em caso de 429 (rate limit) ou instabilidade temporária
+      if (axios.isAxiosError(err) && err.response?.status === 401) {
+        localStorage.removeItem("smaller_token");
+        setToken(null);
+        setUser(null);
+      }
     } finally {
       setIsLoading(false);
     }
   }, []);
 
+  // Hidrata a sessão apenas na montagem inicial a partir do localStorage
   useEffect(() => {
-    if (token) {
-      fetchProfile(token);
+    const stored = localStorage.getItem("smaller_token");
+    if (stored) {
+      fetchProfile(stored);
     }
-  }, [token, fetchProfile]);
+  }, [fetchProfile]);
 
-  const login = async (payload: LoginRequest): Promise<boolean> => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      const response = await api.post<AuthResponse>("/auth/login", payload);
-      const newToken = response.data.token;
-      localStorage.setItem("smaller_token", newToken);
-      setToken(newToken);
-      await fetchProfile(newToken);
-      return true;
-    } catch (err: unknown) {
-      let msg = "Falha ao realizar login.";
-      if (axios.isAxiosError(err) && err.response?.data) {
-        msg = typeof err.response.data === "string" ? err.response.data : "Credenciais inválidas.";
+  const login = useCallback(
+    async (payload: LoginRequest): Promise<boolean> => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        const response = await api.post<AuthResponse>("/auth/login", payload);
+        const newToken = response.data.token;
+        localStorage.setItem("smaller_token", newToken);
+        setToken(newToken);
+        await fetchProfile(newToken);
+        return true;
+      } catch (err: unknown) {
+        let msg = "Falha ao realizar login.";
+        if (axios.isAxiosError(err) && err.response?.data) {
+          msg = typeof err.response.data === "string" ? err.response.data : "Credenciais inválidas.";
+        }
+        setError(msg);
+        return false;
+      } finally {
+        setIsLoading(false);
       }
-      setError(msg);
-      return false;
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    },
+    [fetchProfile]
+  );
 
-  const register = async (payload: RegisterRequest): Promise<boolean> => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      const response = await api.post<AuthResponse>("/auth/register", payload);
-      const newToken = response.data.token;
-      localStorage.setItem("smaller_token", newToken);
-      setToken(newToken);
-      await fetchProfile(newToken);
-      return true;
-    } catch (err: unknown) {
-      let msg = "Falha ao realizar cadastro.";
-      if (axios.isAxiosError(err) && err.response?.data) {
-        msg = typeof err.response.data === "string" ? err.response.data : "Erro ao criar conta.";
+  const register = useCallback(
+    async (payload: RegisterRequest): Promise<boolean> => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        const response = await api.post<AuthResponse>("/auth/register", payload);
+        const newToken = response.data.token;
+        localStorage.setItem("smaller_token", newToken);
+        setToken(newToken);
+        await fetchProfile(newToken);
+        return true;
+      } catch (err: unknown) {
+        let msg = "Falha ao realizar cadastro.";
+        if (axios.isAxiosError(err) && err.response?.data) {
+          msg = typeof err.response.data === "string" ? err.response.data : "Erro ao criar conta.";
+        }
+        setError(msg);
+        return false;
+      } finally {
+        setIsLoading(false);
       }
-      setError(msg);
-      return false;
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    },
+    [fetchProfile]
+  );
 
-  const logout = () => {
+  const logout = useCallback(() => {
     localStorage.removeItem("smaller_token");
     setToken(null);
     setUser(null);
-  };
+  }, []);
+
+  const refreshProfile = useCallback(async () => {
+    await fetchProfile();
+  }, [fetchProfile]);
+
+  const contextValue = useMemo<AuthContextType>(
+    () => ({
+      user,
+      token,
+      isAuthenticated: !!user,
+      isLoading,
+      error,
+      login,
+      register,
+      logout,
+      refreshProfile,
+    }),
+    [user, token, isLoading, error, login, register, logout, refreshProfile]
+  );
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        token,
-        isAuthenticated: !!user,
-        isLoading,
-        error,
-        login,
-        register,
-        logout,
-        refreshProfile: () => fetchProfile()
-      }}
-    >
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );
