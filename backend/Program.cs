@@ -137,11 +137,15 @@ builder.Services.AddAuthentication(options =>
 });
 
 // Services Registration
+builder.Services.AddSingleton<ICacheService, RedisCacheService>();
 builder.Services.AddSingleton<RedisCacheService>();
 builder.Services.AddSingleton<AccessLogQueue>();
 builder.Services.AddSingleton<QrCodeService>();
 builder.Services.AddHostedService<AccessLogProcessor>();
+builder.Services.AddScoped<IUrlShorteningService, UrlShorteningService>();
 builder.Services.AddScoped<UrlShorteningService>();
+builder.Services.AddScoped<IUrlAnalyticsService, UrlAnalyticsService>();
+builder.Services.AddScoped<UrlAnalyticsService>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<ApiKeyService>();
 

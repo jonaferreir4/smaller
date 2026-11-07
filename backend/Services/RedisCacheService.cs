@@ -6,7 +6,7 @@ namespace smaller.Services;
 public class RedisCacheService(
     IDistributedCache distributedCache,
     IMemoryCache memoryCache,
-    ILogger<RedisCacheService> logger)
+    ILogger<RedisCacheService> logger) : ICacheService
 {
     private static readonly DistributedCacheEntryOptions DistributedOptions = new()
     {

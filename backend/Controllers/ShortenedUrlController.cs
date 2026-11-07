@@ -10,10 +10,12 @@ namespace smaller.Controllers;
 [ApiController]
 [Route("")]
 public class ShortenedUrlController(
-    UrlShorteningService urlShorteningService,
+    IUrlShorteningService urlShorteningService,
+    IUrlAnalyticsService urlAnalyticsService,
     QrCodeService qrCodeService) : Controller
 {
-    private readonly UrlShorteningService _urlShorteningService = urlShorteningService;
+    private readonly IUrlShorteningService _urlShorteningService = urlShorteningService;
+    private readonly IUrlAnalyticsService _urlAnalyticsService = urlAnalyticsService;
     private readonly QrCodeService _qrCodeService = qrCodeService;
 
     [HttpGet("api")]
@@ -48,7 +50,7 @@ public class ShortenedUrlController(
     public async Task<IActionResult> GetUrlAnalytics(string code)
     {
         var baseUrl = GetBaseUrl();
-        var result = await _urlShorteningService.GetAnalyticsAsync(code, baseUrl);
+        var result = await _urlAnalyticsService.GetAnalyticsAsync(code, baseUrl);
         if (result == null) return NotFound();
         return Ok(result);
     }
