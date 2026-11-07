@@ -2,7 +2,7 @@ import React, { createContext, useState, useEffect, useCallback, useMemo } from 
 import type { ReactNode } from "react";
 import axios from "axios";
 import { api } from "../services/axios";
-import type { LoginRequest, RegisterRequest, AuthResponse, UserProfileResponse } from "../types/api";
+import type { LoginRequest, RegisterRequest, AuthResponse, UserProfileResponse, ChangePasswordRequest } from "../types/api";
 
 interface AuthContextType {
   user: UserProfileResponse | null;
@@ -15,6 +15,7 @@ interface AuthContextType {
   logout: () => void;
   refreshProfile: () => Promise<void>;
   deleteAccount: (password: string) => Promise<boolean>;
+  changePassword: (payload: ChangePasswordRequest) => Promise<boolean>;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -142,6 +143,27 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, [logout]);
 
+  const changePassword = useCallback(async (payload: ChangePasswordRequest): Promise<boolean> => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const activeToken = localStorage.getItem("smaller_token");
+      await api.put("/auth/password", payload, {
+        headers: activeToken ? { Authorization: `Bearer ${activeToken}` } : undefined,
+      });
+      return true;
+    } catch (err: unknown) {
+      let msg = "Falha ao alterar a senha.";
+      if (axios.isAxiosError(err) && err.response?.data) {
+        msg = typeof err.response.data === "string" ? err.response.data : "Erro ao alterar senha.";
+      }
+      setError(msg);
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   const contextValue = useMemo<AuthContextType>(
     () => ({
       user,
@@ -154,8 +176,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       logout,
       refreshProfile,
       deleteAccount,
+      changePassword,
     }),
-    [user, token, isLoading, error, login, register, logout, refreshProfile, deleteAccount]
+    [user, token, isLoading, error, login, register, logout, refreshProfile, deleteAccount, changePassword]
   );
 
   return (

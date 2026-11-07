@@ -1,14 +1,16 @@
 import type { UserProfileResponse } from "../../types/api";
-import { AlertTriangle, ShieldCheck } from "lucide-react";
+import { AlertTriangle, ShieldCheck, KeyRound } from "lucide-react";
 
 interface ProfileAccountTabProps {
   user: UserProfileResponse;
   onOpenDeleteModal: () => void;
+  onOpenPasswordModal: () => void;
 }
 
 export function ProfileAccountTab({
   user,
   onOpenDeleteModal,
+  onOpenPasswordModal,
 }: ProfileAccountTabProps) {
   return (
     <div className="space-y-5">
@@ -62,6 +64,23 @@ export function ProfileAccountTab({
             <span className="px-2 py-0.5 rounded text-[11px] font-mono bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300">
               Ativa
             </span>
+          </div>
+
+          <div className="py-2.5 flex items-center justify-between">
+            <div className="flex items-center space-x-2.5">
+              <KeyRound className="w-4 h-4 text-zinc-600 dark:text-zinc-400" />
+              <div>
+                <p className="font-semibold text-zinc-800 dark:text-zinc-200">Senha de Acesso</p>
+                <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">Proteja sua conta alterando sua senha periodicamente</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={onOpenPasswordModal}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium border border-zinc-300 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-800 dark:text-zinc-200 transition-colors cursor-pointer"
+            >
+              Alterar Senha
+            </button>
           </div>
         </div>
       </div>

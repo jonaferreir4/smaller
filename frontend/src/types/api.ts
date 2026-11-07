@@ -63,6 +63,11 @@ export interface DeleteAccountRequest {
   password: string;
 }
 
+export interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
+}
+
 export interface ApiKeyResponse {
   id: string;
   name: string;

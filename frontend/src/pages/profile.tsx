@@ -8,11 +8,12 @@ import { ProfileAccountTab } from "../components/profile/profile-account-tab";
 import { ProfileApiKeysTab } from "../components/profile/profile-api-keys-tab";
 import { ProfileBillingTab } from "../components/profile/profile-billing-tab";
 import { DeleteAccountModal } from "../components/profile/delete-account-modal";
+import { ChangePasswordModal } from "../components/profile/change-password-modal";
 import { Key, User as UserIcon, CreditCard, Shield } from "lucide-react";
 
 export const ProfilePage: React.FC = () => {
   const navigate = useNavigate();
-  const { user, refreshProfile, deleteAccount, isLoading: isAuthLoading } = useAuth();
+  const { user, refreshProfile, deleteAccount, changePassword, isLoading: isAuthLoading } = useAuth();
   const { keys, fetchKeys, createKey, revokeKey, isLoading: isKeysLoading } = useApiKeys();
   const { isCopied: copiedKey, copy: handleCopyKey } = useCopyToClipboard();
 
@@ -20,6 +21,7 @@ export const ProfilePage: React.FC = () => {
   const [newKeyName, setNewKeyName] = useState("");
   const [createdKey, setCreatedKey] = useState<ApiKeyResponse | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
 
   useEffect(() => {
     refreshProfile();
@@ -116,44 +118,27 @@ export const ProfilePage: React.FC = () => {
 
       {/* Tabs Navigation */}
       <div className="flex border-b border-zinc-200 dark:border-zinc-800 space-x-1">
-        <button
-          type="button"
-          onClick={() => setActiveTab("account")}
-          className={`flex items-center space-x-2 px-4 py-2.5 rounded-t-lg text-xs font-semibold transition-colors cursor-pointer ${
-            activeTab === "account"
-              ? "bg-zinc-200/80 dark:bg-zinc-900 border-b-2 border-zinc-900 dark:border-zinc-100 text-zinc-900 dark:text-zinc-100"
-              : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-900/40"
-          }`}
-        >
-          <UserIcon className="w-3.5 h-3.5" />
-          <span>Configurações</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab("apikeys")}
-          className={`flex items-center space-x-2 px-4 py-2.5 rounded-t-lg text-xs font-semibold transition-colors cursor-pointer ${
-            activeTab === "apikeys"
-              ? "bg-zinc-200/80 dark:bg-zinc-900 border-b-2 border-zinc-900 dark:border-zinc-100 text-zinc-900 dark:text-zinc-100"
-              : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-900/40"
-          }`}
-        >
-          <Key className="w-3.5 h-3.5" />
-          <span>Chaves de API</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab("billing")}
-          className={`flex items-center space-x-2 px-4 py-2.5 rounded-t-lg text-xs font-semibold transition-colors cursor-pointer ${
-            activeTab === "billing"
-              ? "bg-zinc-200/80 dark:bg-zinc-900 border-b-2 border-zinc-900 dark:border-zinc-100 text-zinc-900 dark:text-zinc-100"
-              : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-900/40"
-          }`}
-        >
-          <CreditCard className="w-3.5 h-3.5" />
-          <span>Assinatura & Planos</span>
-        </button>
+        {(
+          [
+            { id: "account", label: "Configurações", icon: UserIcon },
+            { id: "apikeys", label: "Chaves de API", icon: Key },
+            { id: "billing", label: "Assinatura & Planos", icon: CreditCard },
+          ] as const
+        ).map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setActiveTab(id)}
+            className={`flex items-center space-x-2 px-4 py-2.5 rounded-t-lg text-xs font-semibold transition-colors cursor-pointer ${
+              activeTab === id
+                ? "bg-zinc-200/80 dark:bg-zinc-900 border-b-2 border-zinc-900 dark:border-zinc-100 text-zinc-900 dark:text-zinc-100"
+                : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-900/40"
+            }`}
+          >
+            <Icon className="w-3.5 h-3.5" />
+            <span>{label}</span>
+          </button>
+        ))}
       </div>
 
       {/* Tab: Account Settings */}
@@ -161,6 +146,7 @@ export const ProfilePage: React.FC = () => {
         <ProfileAccountTab
           user={user}
           onOpenDeleteModal={() => setIsDeleteModalOpen(true)}
+          onOpenPasswordModal={() => setIsPasswordModalOpen(true)}
         />
       )}
 
@@ -188,6 +174,13 @@ export const ProfilePage: React.FC = () => {
         onClose={() => setIsDeleteModalOpen(false)}
         onConfirm={handleDeleteAccountConfirm}
         userEmail={user.email}
+      />
+
+      {/* Modal: Change Password */}
+      <ChangePasswordModal
+        isOpen={isPasswordModalOpen}
+        onClose={() => setIsPasswordModalOpen(false)}
+        onConfirm={changePassword}
       />
     </div>
   );
