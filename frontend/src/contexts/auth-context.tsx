@@ -14,6 +14,7 @@ interface AuthContextType {
   register: (payload: RegisterRequest) => Promise<boolean>;
   logout: () => void;
   refreshProfile: () => Promise<void>;
+  deleteAccount: (password: string) => Promise<boolean>;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -118,6 +119,29 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     await fetchProfile();
   }, [fetchProfile]);
 
+  const deleteAccount = useCallback(async (password: string): Promise<boolean> => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const activeToken = localStorage.getItem("smaller_token");
+      await api.delete("/auth/me", {
+        data: { password },
+        headers: activeToken ? { Authorization: `Bearer ${activeToken}` } : undefined,
+      });
+      logout();
+      return true;
+    } catch (err: unknown) {
+      let msg = "Falha ao excluir a conta.";
+      if (axios.isAxiosError(err) && err.response?.data) {
+        msg = typeof err.response.data === "string" ? err.response.data : "Senha incorreta.";
+      }
+      setError(msg);
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [logout]);
+
   const contextValue = useMemo<AuthContextType>(
     () => ({
       user,
@@ -129,8 +153,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       register,
       logout,
       refreshProfile,
+      deleteAccount,
     }),
-    [user, token, isLoading, error, login, register, logout, refreshProfile]
+    [user, token, isLoading, error, login, register, logout, refreshProfile, deleteAccount]
   );
 
   return (

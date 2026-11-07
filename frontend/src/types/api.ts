@@ -59,6 +59,10 @@ export interface CreateApiKeyRequest {
   name: string;
 }
 
+export interface DeleteAccountRequest {
+  password: string;
+}
+
 export interface ApiKeyResponse {
   id: string;
   name: string;

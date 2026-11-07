@@ -1,21 +1,25 @@
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/use-auth";
 import { useApiKeys } from "../hooks/use-api-keys";
 import { useCopyToClipboard } from "../hooks/use-copy-to-clipboard";
 import type { ApiKeyResponse } from "../types/api";
+import { ProfileAccountTab } from "../components/profile/profile-account-tab";
 import { ProfileApiKeysTab } from "../components/profile/profile-api-keys-tab";
 import { ProfileBillingTab } from "../components/profile/profile-billing-tab";
+import { DeleteAccountModal } from "../components/profile/delete-account-modal";
 import { Key, User as UserIcon, CreditCard, Shield } from "lucide-react";
 
 export const ProfilePage: React.FC = () => {
-  const { user, refreshProfile, isLoading: isAuthLoading } = useAuth();
+  const navigate = useNavigate();
+  const { user, refreshProfile, deleteAccount, isLoading: isAuthLoading } = useAuth();
   const { keys, fetchKeys, createKey, revokeKey, isLoading: isKeysLoading } = useApiKeys();
   const { isCopied: copiedKey, copy: handleCopyKey } = useCopyToClipboard();
 
   const [activeTab, setActiveTab] = useState<"account" | "apikeys" | "billing">("account");
   const [newKeyName, setNewKeyName] = useState("");
   const [createdKey, setCreatedKey] = useState<ApiKeyResponse | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   useEffect(() => {
     refreshProfile();
@@ -56,7 +60,7 @@ export const ProfilePage: React.FC = () => {
   const createdDate = new Date(user.createdAtUtc).toLocaleDateString("pt-BR", {
     day: "2-digit",
     month: "short",
-    year: "numeric"
+    year: "numeric",
   });
 
   const handleCreateKey = async (e: React.FormEvent) => {
@@ -68,6 +72,15 @@ export const ProfilePage: React.FC = () => {
       setCreatedKey(result);
       setNewKeyName("");
     }
+  };
+
+  const handleDeleteAccountConfirm = async (password: string): Promise<boolean> => {
+    const success = await deleteAccount(password);
+    if (success) {
+      setIsDeleteModalOpen(false);
+      navigate("/");
+    }
+    return success;
   };
 
   return (
@@ -145,52 +158,10 @@ export const ProfilePage: React.FC = () => {
 
       {/* Tab: Account Settings */}
       {activeTab === "account" && (
-        <div className="space-y-4">
-          <div className="surface-card p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 space-y-4">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-700 dark:text-zinc-300">
-              Dados Cadastrais
-            </h2>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-              <div>
-                <label className="block text-zinc-500 dark:text-zinc-400 font-medium mb-1">E-mail Cadastrado</label>
-                <input
-                  type="email"
-                  disabled
-                  value={user.email}
-                  className="w-full px-3 py-2 bg-zinc-100 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg text-zinc-600 dark:text-zinc-400 font-mono text-xs cursor-not-allowed"
-                />
-              </div>
-
-              <div>
-                <label className="block text-zinc-500 dark:text-zinc-400 font-medium mb-1">Identificador de Usuário (UUID)</label>
-                <input
-                  type="text"
-                  disabled
-                  value={user.id}
-                  className="w-full px-3 py-2 bg-zinc-100 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg text-zinc-600 dark:text-zinc-400 font-mono text-xs cursor-not-allowed"
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="surface-card p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 space-y-3">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-700 dark:text-zinc-300">
-              Sessões & Segurança
-            </h2>
-            <div className="divide-y divide-zinc-200 dark:divide-zinc-800/80 text-xs">
-              <div className="py-2.5 flex items-center justify-between">
-                <div>
-                  <p className="font-semibold text-zinc-800 dark:text-zinc-200">Sessão Web Atual</p>
-                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">Assinatura HMAC-SHA256 validada</p>
-                </div>
-                <span className="px-2 py-0.5 rounded text-[11px] font-mono bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300">
-                  Ativa
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
+        <ProfileAccountTab
+          user={user}
+          onOpenDeleteModal={() => setIsDeleteModalOpen(true)}
+        />
       )}
 
       {/* Tab: API Keys */}
@@ -210,6 +181,14 @@ export const ProfilePage: React.FC = () => {
 
       {/* Tab: Billing */}
       {activeTab === "billing" && <ProfileBillingTab />}
+
+      {/* Modal: Confirm Delete Account */}
+      <DeleteAccountModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={handleDeleteAccountConfirm}
+        userEmail={user.email}
+      />
     </div>
   );
 };
