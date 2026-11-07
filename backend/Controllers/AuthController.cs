@@ -10,10 +10,10 @@ namespace smaller.Controllers;
 
 [ApiController]
 [Route("api/auth")]
-[EnableRateLimiting("auth-policy")]
 public class AuthController(AuthService authService) : ControllerBase
 {
     [HttpPost("register")]
+    [EnableRateLimiting("auth-policy")]
     public async Task<ActionResult<AuthResponse>> Register([FromBody] RegisterRequest request)
     {
         try
@@ -28,6 +28,7 @@ public class AuthController(AuthService authService) : ControllerBase
     }
 
     [HttpPost("login")]
+    [EnableRateLimiting("auth-policy")]
     public async Task<ActionResult<AuthResponse>> Login([FromBody] LoginRequest request)
     {
         try
