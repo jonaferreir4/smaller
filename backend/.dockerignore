@@ -1,0 +1,11 @@
+bin/
+obj/
+smaller.Tests/
+.git/
+.env
+.env.*
+!.env.example
+appsettings.Development.json
+*.user
+*.suo
+

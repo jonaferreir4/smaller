@@ -9,8 +9,10 @@ services:
       POSTGRES_DB: ${DB_NAME}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
+    # Em produção, o banco fica isolado na rede interna do Docker.
+    # Descomente a linha abaixo somente para desenvolvimento local direto na máquina host:
+    # ports:
+    #   - "127.0.0.1:5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
       interval: 3s
@@ -21,8 +23,10 @@ services:
     image: redis:7-alpine
     container_name: smaller-redis
     restart: always
-    ports:
-      - "6379:6379"
+    # Em produção, o Redis fica isolado na rede interna do Docker.
+    # Descomente a linha abaixo somente para desenvolvimento local direto na máquina host:
+    # ports:
+    #   - "127.0.0.1:6379:6379"
     volumes:
       - redis_data:/data
 
@@ -78,7 +82,7 @@ services:
     labels:
       - 'traefik.enable=true'
       # Rotas específicas do frontend com prioridade 25 para não colidir com slugs customizados
-      - 'traefik.http.routers.smaller-frontend-routes.rule=Host(`${DOMAIN_NAME}`) && (Path(`/`, `/dashboard`, `/profile`) || PathPrefix(`/assets/`))'
+      - 'traefik.http.routers.smaller-frontend-routes.rule=Host(`${DOMAIN_NAME}`) && (Path(`/`, `/dashboard`, `/profile`, `/termos`, `/privacidade`) || PathPrefix(`/assets/`))'
       - 'traefik.http.routers.smaller-frontend-routes.entrypoints=web'
       - 'traefik.http.routers.smaller-frontend-routes.priority=25'
       # Catch-all: tudo que não é /api nem short code vai para o frontend SPA
@@ -91,25 +95,22 @@ services:
     image: traefik:v3.6
     command: 
       - "--api.dashboard=true"
-      - "--api.insecure=true"
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
 
       - "--entrypoints.web.address=:80"
+      # Configuração para produção com HTTPS / Let's Encrypt:
       # - "--entrypoints.websecure.address=:443"
-
       # - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
       # - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
-
       # - "--certificatesresolvers.letsencrypt.acme.tlschallenge=true"
       # - "--certificatesresolvers.letsencrypt.acme.email=${LE_EMAIL}"
       # - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
     ports:
       - "80:80"
-      # - "443:443"  # Descomentar quando habilitar HTTPS
-      # - "8080:8080" # Dashboard do Traefik (habilitar se necessário)
+      # - "443:443"  # Descomentar ao habilitar HTTPS
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/run/docker.sock:/var/run/docker.sock:ro
       - traefik-certs:/letsencrypt
     # labels:
     #     # Roteamento para o dashboard do Traefik
