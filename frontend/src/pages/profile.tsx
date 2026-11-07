@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../hooks/use-auth";
 import { useApiKeys } from "../hooks/use-api-keys";
+import { useCopyToClipboard } from "../hooks/use-copy-to-clipboard";
 import type { ApiKeyResponse } from "../types/api";
 import { ProfileApiKeysTab } from "../components/profile/profile-api-keys-tab";
 import { ProfileBillingTab } from "../components/profile/profile-billing-tab";
@@ -10,11 +11,11 @@ import { Key, User as UserIcon, CreditCard, Shield } from "lucide-react";
 export const ProfilePage: React.FC = () => {
   const { user, refreshProfile } = useAuth();
   const { keys, fetchKeys, createKey, revokeKey, isLoading: isKeysLoading } = useApiKeys();
+  const { isCopied: copiedKey, copy: handleCopyKey } = useCopyToClipboard();
 
   const [activeTab, setActiveTab] = useState<"account" | "apikeys" | "billing">("account");
   const [newKeyName, setNewKeyName] = useState("");
   const [createdKey, setCreatedKey] = useState<ApiKeyResponse | null>(null);
-  const [copiedKey, setCopiedKey] = useState(false);
 
   useEffect(() => {
     refreshProfile();
@@ -59,12 +60,6 @@ export const ProfilePage: React.FC = () => {
       setCreatedKey(result);
       setNewKeyName("");
     }
-  };
-
-  const handleCopyKey = (text: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedKey(true);
-    setTimeout(() => setCopiedKey(false), 2000);
   };
 
   return (

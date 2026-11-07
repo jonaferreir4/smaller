@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useApiKeys } from "../hooks/use-api-keys";
+import { useCopyToClipboard } from "../hooks/use-copy-to-clipboard";
 import type { ApiKeyResponse } from "../types/api";
 import { X, Copy, Check, Trash2, Plus } from "lucide-react";
 
@@ -9,9 +10,9 @@ interface ApiKeysModalProps {
 
 export const ApiKeysModal: React.FC<ApiKeysModalProps> = ({ onClose }) => {
   const { keys, fetchKeys, createKey, revokeKey, isLoading } = useApiKeys();
+  const { isCopied: copiedKey, copy: handleCopy } = useCopyToClipboard();
   const [newKeyName, setNewKeyName] = useState("");
   const [createdKey, setCreatedKey] = useState<ApiKeyResponse | null>(null);
-  const [copiedKey, setCopiedKey] = useState(false);
 
   useEffect(() => {
     fetchKeys();
@@ -26,12 +27,6 @@ export const ApiKeysModal: React.FC<ApiKeysModalProps> = ({ onClose }) => {
       setCreatedKey(result);
       setNewKeyName("");
     }
-  };
-
-  const handleCopy = (text: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedKey(true);
-    setTimeout(() => setCopiedKey(false), 2000);
   };
 
   return (
