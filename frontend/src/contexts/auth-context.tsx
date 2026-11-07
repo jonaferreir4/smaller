@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import React, { createContext, useState, useEffect, useCallback } from "react";
 import type { ReactNode } from "react";
+import axios from "axios";
 import { api } from "../services/axios";
 import type { LoginRequest, RegisterRequest, AuthResponse, UserProfileResponse } from "../types/api";
 
@@ -15,7 +16,7 @@ interface AuthContextType {
   refreshProfile: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<UserProfileResponse | null>(null);
@@ -61,9 +62,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setToken(newToken);
       await fetchProfile(newToken);
       return true;
-    } catch (err: any) {
-      const msg = err.response?.data || "Falha ao realizar login.";
-      setError(typeof msg === "string" ? msg : "Credenciais inválidas.");
+    } catch (err: unknown) {
+      let msg = "Falha ao realizar login.";
+      if (axios.isAxiosError(err) && err.response?.data) {
+        msg = typeof err.response.data === "string" ? err.response.data : "Credenciais inválidas.";
+      }
+      setError(msg);
       return false;
     } finally {
       setIsLoading(false);
@@ -80,9 +84,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setToken(newToken);
       await fetchProfile(newToken);
       return true;
-    } catch (err: any) {
-      const msg = err.response?.data || "Falha ao realizar cadastro.";
-      setError(typeof msg === "string" ? msg : "Erro ao criar conta.");
+    } catch (err: unknown) {
+      let msg = "Falha ao realizar cadastro.";
+      if (axios.isAxiosError(err) && err.response?.data) {
+        msg = typeof err.response.data === "string" ? err.response.data : "Erro ao criar conta.";
+      }
+      setError(msg);
       return false;
     } finally {
       setIsLoading(false);
@@ -112,12 +119,4 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       {children}
     </AuthContext.Provider>
   );
-};
-
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
-  return context;
 };

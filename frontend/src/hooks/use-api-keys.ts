@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import axios from "axios";
 import { api } from "../services/axios";
 import type { ApiKeyResponse } from "../types/api";
 
@@ -13,7 +14,7 @@ export function useApiKeys() {
       setError(null);
       const response = await api.get<ApiKeyResponse[]>("/keys");
       setKeys(response.data);
-    } catch (err: any) {
+    } catch {
       setError("Erro ao carregar chaves de API.");
     } finally {
       setIsLoading(false);
@@ -27,8 +28,12 @@ export function useApiKeys() {
       const response = await api.post<ApiKeyResponse>("/keys", { name });
       await fetchKeys();
       return response.data;
-    } catch (err: any) {
-      setError(err.response?.data || "Erro ao criar chave de API.");
+    } catch (err: unknown) {
+      let msg = "Erro ao criar chave de API.";
+      if (axios.isAxiosError(err) && err.response?.data) {
+        msg = typeof err.response.data === "string" ? err.response.data : JSON.stringify(err.response.data);
+      }
+      setError(msg);
       return null;
     } finally {
       setIsLoading(false);

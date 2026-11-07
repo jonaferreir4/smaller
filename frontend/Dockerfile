@@ -2,9 +2,9 @@
 FROM node:20-alpine AS build
 WORKDIR /app
 
-# Instalar dependências
+# Instalar dependências com build reproduzível
 COPY package.json package-lock.json ./
-RUN npm install
+RUN npm ci
 
 # Copiar todo o código e construir o app
 COPY . .
@@ -20,11 +20,10 @@ RUN rm -rf ./*
 # Copia os arquivos buildados do React para o NGINX
 COPY --from=build /app/dist .
 
-# Copiar configuração customizada do NGINX (opcional)
+# Copiar configuração customizada do NGINX
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Expor a porta padrão do NGINX
 EXPOSE 80
 
 CMD ["nginx", "-g", "daemon off;"]
-# Configuração do Axios para a API

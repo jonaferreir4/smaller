@@ -21,6 +21,12 @@ export function Footer() {
           <Link to="/dashboard" className="hover:text-zinc-900 dark:hover:text-zinc-200 transition-colors">
             Analytics
           </Link>
+          <Link to="/termos" className="hover:text-zinc-900 dark:hover:text-zinc-200 transition-colors">
+            Termos
+          </Link>
+          <Link to="/privacidade" className="hover:text-zinc-900 dark:hover:text-zinc-200 transition-colors">
+            Privacidade
+          </Link>
         </div>
       </div>
     </footer>
