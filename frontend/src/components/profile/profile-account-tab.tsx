@@ -33,12 +33,12 @@ export function ProfileAccountTab({
 
           <div>
             <label className="block text-zinc-500 dark:text-zinc-400 font-medium mb-1">
-              Identificador de Usuário (UUID)
+              Total de Links Criados
             </label>
             <input
               type="text"
               disabled
-              value={user.id}
+              value={`${user.totalLinksCreated} link${user.totalLinksCreated === 1 ? "" : "s"}`}
               className="w-full px-3 py-2 bg-zinc-100 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg text-zinc-600 dark:text-zinc-400 font-mono text-xs cursor-not-allowed"
             />
           </div>
