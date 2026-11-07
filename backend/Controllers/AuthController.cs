@@ -57,4 +57,32 @@ public class AuthController(AuthService authService) : ControllerBase
 
         return Ok(profile);
     }
+
+    [HttpDelete("me")]
+    [Authorize]
+    public async Task<IActionResult> DeleteAccount([FromBody] DeleteAccountRequest request)
+    {
+        var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+        {
+            return Unauthorized();
+        }
+
+        if (string.IsNullOrWhiteSpace(request?.Password))
+        {
+            return BadRequest("A confirmação da senha é obrigatória para excluir a conta.");
+        }
+
+        try
+        {
+            var success = await authService.DeleteAccountAsync(userId, request.Password);
+            if (!success) return NotFound();
+
+            return NoContent();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
 }

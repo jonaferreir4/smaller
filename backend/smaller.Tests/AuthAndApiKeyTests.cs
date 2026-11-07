@@ -103,4 +103,50 @@ public class AuthAndApiKeyTests
         Assert.NotNull(validatedUser);
         Assert.Equal(user.Id, validatedUser.Id);
     }
+
+    [Fact]
+    public async Task DeleteAccountAsync_WithCorrectPassword_ShouldDeleteUserAndAssociatedData()
+    {
+        // Arrange
+        var email = "delete_me@example.com";
+        var password = "SecurePassword123!";
+        await _authService.RegisterAsync(new RegisterRequest(email, password));
+        var user = await _dbContext.Users.FirstAsync(u => u.Email == email);
+        await _apiKeyService.CreateApiKeyAsync(user.Id, "Key to be deleted");
+
+        // Act
+        var result = await _authService.DeleteAccountAsync(user.Id, password);
+
+        // Assert
+        Assert.True(result);
+        var deletedUser = await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == user.Id);
+        Assert.Null(deletedUser);
+        var remainingKeys = await _dbContext.ApiKeys.Where(k => k.UserId == user.Id).ToListAsync();
+        Assert.Empty(remainingKeys);
+    }
+
+    [Fact]
+    public async Task DeleteAccountAsync_WithIncorrectPassword_ShouldThrowInvalidOperationException()
+    {
+        // Arrange
+        var email = "wrong_delete@example.com";
+        var password = "SecurePassword123!";
+        await _authService.RegisterAsync(new RegisterRequest(email, password));
+        var user = await _dbContext.Users.FirstAsync(u => u.Email == email);
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _authService.DeleteAccountAsync(user.Id, "WrongPassword123!"));
+        Assert.Contains("Senha incorreta", ex.Message);
+    }
+
+    [Fact]
+    public async Task DeleteAccountAsync_WithNonExistentUser_ShouldReturnFalse()
+    {
+        // Act
+        var result = await _authService.DeleteAccountAsync(Guid.NewGuid(), "AnyPassword");
+
+        // Assert
+        Assert.False(result);
+    }
 }

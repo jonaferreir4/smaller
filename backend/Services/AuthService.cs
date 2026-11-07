@@ -10,7 +10,7 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace smaller.Services;
 
-public class AuthService(ApplicationDbContext context, IConfiguration configuration)
+public class AuthService(ApplicationDbContext context, IConfiguration configuration, ICacheService? cacheService = null)
 {
     public async Task<AuthResponse> RegisterAsync(RegisterRequest request)
     {
@@ -86,6 +86,41 @@ public class AuthService(ApplicationDbContext context, IConfiguration configurat
             user.ShortenedUrls.Count,
             user.CreatedAtUtc
         );
+    }
+
+    public async Task<bool> DeleteAccountAsync(Guid userId, string password)
+    {
+        if (string.IsNullOrWhiteSpace(password))
+        {
+            throw new InvalidOperationException("Password is required.");
+        }
+
+        var user = await context.Users
+            .Include(u => u.ShortenedUrls)
+            .Include(u => u.ApiKeys)
+            .FirstOrDefaultAsync(u => u.Id == userId);
+
+        if (user == null) return false;
+
+        if (!PasswordHasher.VerifyPassword(password, user.PasswordHash))
+        {
+            throw new InvalidOperationException("Senha incorreta. Confirme sua senha atual para excluir a conta.");
+        }
+
+        if (cacheService != null)
+        {
+            foreach (var url in user.ShortenedUrls)
+            {
+                await cacheService.RemoveAsync(url.Code);
+            }
+        }
+
+        context.ShortenedUrls.RemoveRange(user.ShortenedUrls);
+        context.ApiKeys.RemoveRange(user.ApiKeys);
+        context.Users.Remove(user);
+
+        await context.SaveChangesAsync();
+        return true;
     }
 
     public string GenerateJwtToken(User user)
