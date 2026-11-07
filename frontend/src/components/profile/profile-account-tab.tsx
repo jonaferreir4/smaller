@@ -56,7 +56,7 @@ export function ProfileAccountTab({
               <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
               <div>
                 <p className="font-semibold text-zinc-800 dark:text-zinc-200">Sessão Web Atual</p>
-                <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">Assinatura HMAC-SHA256 validada</p>
+                <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">Conectado com segurança neste navegador</p>
               </div>
             </div>
             <span className="px-2 py-0.5 rounded text-[11px] font-mono bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300">
