@@ -149,4 +149,71 @@ public class AuthAndApiKeyTests
         // Assert
         Assert.False(result);
     }
+
+    [Fact]
+    public async Task ChangePasswordAsync_WithValidPasswords_ShouldUpdatePasswordAndAllowLogin()
+    {
+        // Arrange
+        var email = "change_pass@example.com";
+        var oldPassword = "OldPassword123!";
+        var newPassword = "NewPassword456!";
+        await _authService.RegisterAsync(new RegisterRequest(email, oldPassword));
+        var user = await _dbContext.Users.FirstAsync(u => u.Email == email);
+
+        // Act
+        var result = await _authService.ChangePasswordAsync(user.Id, oldPassword, newPassword);
+
+        // Assert
+        Assert.True(result);
+        var loginResult = await _authService.LoginAsync(new LoginRequest(email, newPassword));
+        Assert.NotNull(loginResult.Token);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _authService.LoginAsync(new LoginRequest(email, oldPassword)));
+    }
+
+    [Fact]
+    public async Task ChangePasswordAsync_WithWrongCurrentPassword_ShouldThrowInvalidOperationException()
+    {
+        // Arrange
+        var email = "wrong_curr_pass@example.com";
+        var password = "CurrentPassword123!";
+        await _authService.RegisterAsync(new RegisterRequest(email, password));
+        var user = await _dbContext.Users.FirstAsync(u => u.Email == email);
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _authService.ChangePasswordAsync(user.Id, "IncorrectPassword", "NewValidPassword123!"));
+        Assert.Contains("Senha atual incorreta", ex.Message);
+    }
+
+    [Fact]
+    public async Task ChangePasswordAsync_WithShortNewPassword_ShouldThrowInvalidOperationException()
+    {
+        // Arrange
+        var email = "short_new_pass@example.com";
+        var password = "CurrentPassword123!";
+        await _authService.RegisterAsync(new RegisterRequest(email, password));
+        var user = await _dbContext.Users.FirstAsync(u => u.Email == email);
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _authService.ChangePasswordAsync(user.Id, password, "short"));
+        Assert.Contains("no mínimo 8 caracteres", ex.Message);
+    }
+
+    [Fact]
+    public async Task ChangePasswordAsync_WithSameNewPassword_ShouldThrowInvalidOperationException()
+    {
+        // Arrange
+        var email = "same_pass@example.com";
+        var password = "CurrentPassword123!";
+        await _authService.RegisterAsync(new RegisterRequest(email, password));
+        var user = await _dbContext.Users.FirstAsync(u => u.Email == email);
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _authService.ChangePasswordAsync(user.Id, password, password));
+        Assert.Contains("não pode ser igual", ex.Message);
+    }
 }

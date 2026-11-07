@@ -85,4 +85,32 @@ public class AuthController(AuthService authService) : ControllerBase
             return BadRequest(ex.Message);
         }
     }
+
+    [HttpPut("password")]
+    [Authorize]
+    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request)
+    {
+        var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+        {
+            return Unauthorized();
+        }
+
+        if (request == null || string.IsNullOrWhiteSpace(request.CurrentPassword) || string.IsNullOrWhiteSpace(request.NewPassword))
+        {
+            return BadRequest("A senha atual e a nova senha são obrigatórias.");
+        }
+
+        try
+        {
+            var success = await authService.ChangePasswordAsync(userId, request.CurrentPassword, request.NewPassword);
+            if (!success) return NotFound();
+
+            return NoContent();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
 }

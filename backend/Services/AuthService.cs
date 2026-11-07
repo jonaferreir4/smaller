@@ -123,6 +123,41 @@ public class AuthService(ApplicationDbContext context, IConfiguration configurat
         return true;
     }
 
+    public async Task<bool> ChangePasswordAsync(Guid userId, string currentPassword, string newPassword)
+    {
+        if (string.IsNullOrWhiteSpace(currentPassword))
+        {
+            throw new InvalidOperationException("A senha atual é obrigatória.");
+        }
+
+        if (string.IsNullOrWhiteSpace(newPassword))
+        {
+            throw new InvalidOperationException("A nova senha é obrigatória.");
+        }
+
+        if (newPassword.Length < 8)
+        {
+            throw new InvalidOperationException("A nova senha deve ter no mínimo 8 caracteres.");
+        }
+
+        var user = await context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+        if (user == null) return false;
+
+        if (!PasswordHasher.VerifyPassword(currentPassword, user.PasswordHash))
+        {
+            throw new InvalidOperationException("Senha atual incorreta.");
+        }
+
+        if (PasswordHasher.VerifyPassword(newPassword, user.PasswordHash))
+        {
+            throw new InvalidOperationException("A nova senha não pode ser igual à senha atual.");
+        }
+
+        user.PasswordHash = PasswordHasher.HashPassword(newPassword);
+        await context.SaveChangesAsync();
+        return true;
+    }
+
     public string GenerateJwtToken(User user)
     {
         var jwtSecret = Environment.GetEnvironmentVariable("JWT_SECRET") 
